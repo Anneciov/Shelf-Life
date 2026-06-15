@@ -1389,7 +1389,7 @@ function rebuildBase(){
   RAW.length=0;base.forEach(r=>RAW.push(r));
   const safe=(fn)=>{try{fn&&fn();}catch(e){console.warn('[rebuildBase]',e);}};
   safe(buildHero);safe(buildKPIs);safe(buildCriticidade);safe(buildGerencial);
-  safe(buildCharts);safe(buildAlerts);safe(renderFiliais);
+  safe(buildCharts);safe(buildAlerts);safe(renderFiliais);safe(buildWeekComparison);
   page=1;safe(applyF);safe(updateAIStats);
 }
 function aplicarPoliticaCheck(){
@@ -2402,8 +2402,12 @@ function init(){
   if(excludeVencidos)rebuildBase();
   (async()=>{
     if(sb&&await loadFromSupabase())return;   // 1) Supabase (online)
+    try{                                       // 2) cache localStorage
+      const raw=localStorage.getItem('sb8_raw');
+      if(raw){const d=JSON.parse(raw);if(d&&d.length){processUploadedData(d,'cache local');return;}}
+    }catch(_){}
     document.getElementById('syncLbl').textContent='⏳ Carregando arquivos…';
-    autoLoadAllFiles();                        // 2) fallback rede/arquivo
+    autoLoadAllFiles();                        // 3) fallback rede/arquivo
   })();
 }
 
@@ -2643,7 +2647,7 @@ function buildWeekComparison(){
   const el=document.getElementById('weekCompPanel');
   if(!el)return;
   if(!PREV_RAW||!PREV_RAW.length){el.style.display='none';return;}
-  const cur=calcWeekMetrics(RAW, false);   // estoque_atual: sem vencidos
+  const cur=calcWeekMetrics(RAW_FULL||RAW, false);   // usa base completa p/ contar vencidos corretamente
   const prev=calcWeekMetrics(PREV_RAW, false); // backlog: mantém histórico completo
   if(!cur||!prev){el.style.display='none';return;}
   el.style.display='';
@@ -2686,10 +2690,8 @@ function buildWeekComparison(){
       </div>
     </div>`;
   }
-  // Linha Vencidos: só no Dashboard Gerencial (gerAuth)
   const skuRows=[
     {label:'SKU Backlog 46–180d',cur:cur.skuRisco,prev:prev.skuRisco,color:'var(--acc)',main:true,inverted:true,filter:"showScr('tbl');filterBkt('46-180d')"},
-    ...(typeof gerAuth!=='undefined'&&gerAuth?[{label:'Vencidos',cur:cur.skuVenc,prev:prev.skuVenc,color:'#f87171',inverted:true,filter:"showScr('tbl');filterBkt('Vencido')"}]:[]),
     {label:'Crítico 0–45d',cur:cur.skuCrit,prev:prev.skuCrit,color:'#f97316',inverted:true,filter:"showScr('tbl');filterBkt('0-45d')"},
     {label:'Atenção 46–90d',cur:cur.skuWarn,prev:prev.skuWarn,color:'#eab308',inverted:true,filter:"showScr('tbl');filterBkt('46-90d')"},
     {label:'Alerta 91–120d',cur:cur.skuAlerta,prev:prev.skuAlerta,color:'#60a5fa',inverted:true,filter:"showScr('tbl');filterBkt('91-120d')"},
@@ -2986,7 +2988,7 @@ function processUploadedData(rows,filename){
   const cProduto  =findCol('Produto','produto','PRODUTO','Cód Produto','cod produto');
   const cValidade =findCol('Data Validad','Data Validade','data_validade','DATA VALIDADE','Validade','validade');
   const cSaldo    =findCol('Saldo Lote','saldo_lote','SALDO LOTE','Saldo','saldo','Qty','qty');
-  const cDias     =findCol('dias_para_vencer','Dias para Vencer','dias_vencer');
+  const cDias     =findCol('Dias para Vencer','dias_vencer'); // ignora 'dias_para_vencer' de cache — sempre recalcula pela data
   const cLote     =findCol('Lote','lote','LOTE','Nr Lote','nr_lote');
   const cArm      =findCol('Armazem','Armazém','armazem','ARMAZEM','Arm','arm','Warehouse','warehouse');
   const cDesc     =findCol('Descricao','Descrição','descricao','DESCRICAO','Decricao','Decrição','Decricão','decrição','decricao','DECRICAO','DESCRIÇÃO','Desc Produto','Nome Produto','Nome','Descr');
@@ -3182,18 +3184,7 @@ function onAuthed(){
   document.getElementById('authGate').classList.add('hidden');
   if(!window.__appBooted){
     window.__appBooted=true;
-    init();
-    // carrega dados do Supabase automaticamente após login
-    setTimeout(async()=>{
-      const ok=await loadFromSupabase();
-      if(!ok){
-        // se vazio, tenta localStorage como fallback
-        try{
-          const raw=localStorage.getItem('sb8_raw');
-          if(raw){const d=JSON.parse(raw);if(d&&d.length)processUploadedData(d,'cache local');}
-        }catch(_){}
-      }
-    },300);
+    init(); // init já chama loadFromSupabase + fallbacks
   }
 }
 
