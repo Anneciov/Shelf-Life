@@ -1389,7 +1389,7 @@ function rebuildBase(){
   RAW.length=0;base.forEach(r=>RAW.push(r));
   const safe=(fn)=>{try{fn&&fn();}catch(e){console.warn('[rebuildBase]',e);}};
   safe(buildHero);safe(buildKPIs);safe(buildCriticidade);safe(buildGerencial);
-  safe(buildCharts);safe(buildAlerts);safe(renderFiliais);safe(buildWeekComparison);
+  safe(buildCharts);safe(buildAlerts);safe(renderFiliais);
   page=1;safe(applyF);safe(updateAIStats);
 }
 function aplicarPoliticaCheck(){
@@ -2141,7 +2141,7 @@ function buildGerencial(){
     if(!o.c&&r.Classificacao)o.c=r.Classificacao;
     if(!o.f&&r.Fornecedor)o.f=r.Fornecedor;
   });
-  const topProds=Object.values(byProd).sort((a,b)=>{const av=a.minD<0?1:0,bv=b.minD<0?1:0;if(bv!==av)return bv-av;return b.n-a.n||(b.v||b.s)-(a.v||a.s);}).slice(0,30);
+  const topProds=Object.values(byProd).sort((a,b)=>b.n-a.n||(b.v||b.s)-(a.v||a.s)).slice(0,20);
   if(!topProds.length){elP.innerHTML='<div class="gp-empty">Nenhum produto em risco.</div>';}
   else{
     elP.innerHTML='';
@@ -2189,7 +2189,7 @@ function buildGerencial(){
     if(!o.tipos[c])o.tipos[c]={n:0,s:0,v:0};
     o.tipos[c].n++;o.tipos[c].s+=sl(r);o.tipos[c].v+=r.Valor||0;
   });
-  const topLabs=Object.values(byLab).filter(l=>l.nR>0).sort((a,b)=>{if(b.nVenc!==a.nVenc)return b.nVenc-a.nVenc;return(b.vR||b.sR)-(a.vR||a.sR)||b.nR-a.nR;}).slice(0,20);
+  const topLabs=Object.values(byLab).filter(l=>l.nR>0).sort((a,b)=>(b.vR||b.sR)-(a.vR||a.sR)||b.nR-a.nR).slice(0,15);
 
   // (gráfico removido a pedido do usuário)
   if(!topLabs.length){elL.innerHTML='<div class="gp-empty">Sem dados de laboratório.</div>';}
@@ -2251,7 +2251,7 @@ function buildGerencial(){
     if(!o.labs[f])o.labs[f]={n:0,s:0,v:0};
     o.labs[f].n++;o.labs[f].s+=sl(r);o.labs[f].v+=r.Valor||0;
   });
-  const cats=Object.values(byCat).filter(c=>c.nR>0).sort((a,b)=>{if(b.nVenc!==a.nVenc)return b.nVenc-a.nVenc;return b.nR-a.nR||(b.vR||b.sR)-(a.vR||a.sR);});
+  const cats=Object.values(byCat).filter(c=>c.nR>0).sort((a,b)=>b.nR-a.nR||(b.vR||b.sR)-(a.vR||a.sR));
   if(!cats.length){elC.innerHTML='<div class="gp-empty">Nenhum tipo em risco.</div>';}
   else{
     elC.innerHTML='';
@@ -2643,7 +2643,7 @@ function buildWeekComparison(){
   const el=document.getElementById('weekCompPanel');
   if(!el)return;
   if(!PREV_RAW||!PREV_RAW.length){el.style.display='none';return;}
-  const cur=calcWeekMetrics(RAW, true);   // estoque_atual: sem vencidos
+  const cur=calcWeekMetrics(RAW, false);   // estoque_atual: sem vencidos
   const prev=calcWeekMetrics(PREV_RAW, false); // backlog: mantém histórico completo
   if(!cur||!prev){el.style.display='none';return;}
   el.style.display='';
@@ -2686,8 +2686,10 @@ function buildWeekComparison(){
       </div>
     </div>`;
   }
+  // Linha Vencidos: só no Dashboard Gerencial (gerAuth)
   const skuRows=[
     {label:'SKU Backlog 46–180d',cur:cur.skuRisco,prev:prev.skuRisco,color:'var(--acc)',main:true,inverted:true,filter:"showScr('tbl');filterBkt('46-180d')"},
+    ...(typeof gerAuth!=='undefined'&&gerAuth?[{label:'Vencidos',cur:cur.skuVenc,prev:prev.skuVenc,color:'#f87171',inverted:true,filter:"showScr('tbl');filterBkt('Vencido')"}]:[]),
     {label:'Crítico 0–45d',cur:cur.skuCrit,prev:prev.skuCrit,color:'#f97316',inverted:true,filter:"showScr('tbl');filterBkt('0-45d')"},
     {label:'Atenção 46–90d',cur:cur.skuWarn,prev:prev.skuWarn,color:'#eab308',inverted:true,filter:"showScr('tbl');filterBkt('46-90d')"},
     {label:'Alerta 91–120d',cur:cur.skuAlerta,prev:prev.skuAlerta,color:'#60a5fa',inverted:true,filter:"showScr('tbl');filterBkt('91-120d')"},
@@ -3073,8 +3075,6 @@ function processUploadedData(rows,filename){
     if(cLote&&r[cLote])row['Lote']=String(r[cLote]);
     if(cArm&&r[cArm]!==''&&r[cArm]!=null)row['Armazem']=String(r[cArm]).trim();
     if(cDesc&&r[cDesc])row['Descricao']=String(r[cDesc]);
-    if(cForn&&r[cForn]!==''&&r[cForn]!=null)row['Fornecedor']=String(r[cForn]);
-    if(cClass&&r[cClass]!==''&&r[cClass]!=null)row['Classificacao']=String(r[cClass]);
     if(cPolitica&&r[cPolitica]!==''&&r[cPolitica]!=null){
       let pv=String(r[cPolitica]).trim();const pl=pv.toLowerCase();
       if(pl==='sim')pv='SIM';
