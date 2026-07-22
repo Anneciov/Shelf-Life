@@ -366,16 +366,19 @@ body{background:var(--bg);color:var(--txt)}
 .pol-check-title{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;color:var(--txt);letter-spacing:-.2px}
 .pol-check-title small{font-size:11.5px;font-weight:600;color:var(--txt3);font-family:Cambria,Georgia,serif;letter-spacing:.2px;margin-left:2px}
 .pol-check-opts{display:flex;gap:22px;flex-wrap:wrap}
-.cyber-check-label{display:flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--txt2);font-family:'JetBrains Mono',monospace;cursor:pointer;user-select:none}
-.cyber-check{appearance:none;-webkit-appearance:none;width:20px;height:20px;border:2px solid var(--acc);border-radius:5px;background:transparent;position:relative;margin-right:9px;cursor:pointer;transition:border-color .2s;flex-shrink:0}
-.cyber-check:before{content:"";background:var(--acc);display:block;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(0);width:10px;height:10px;border-radius:3px;transition:transform .25s cubic-bezier(.34,1.4,.64,1)}
-.cyber-check:checked:before{transform:translate(-50%,-50%) scale(1)}
-.cyber-check.cc-sim{border-color:#16a34a}
-.cyber-check.cc-sim:before{background:#16a34a}
-.cyber-check.cc-ver{border-color:#d97706}
-.cyber-check.cc-ver:before{background:#d97706}
-.cyber-check.cc-nao{border-color:#dc2626}
-.cyber-check.cc-nao:before{background:#dc2626}
+/* From Uiverse.io by PriyanshuGupta28 */
+.checkbox-wrapper{display:inline-flex;align-items:center}
+.checkbox-wrapper input[type="checkbox"]{display:none}
+.checkbox-wrapper .terms-label{cursor:pointer;display:flex;align-items:center;user-select:none;font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--txt2);font-family:'JetBrains Mono',monospace}
+.checkbox-wrapper .terms-label .label-text{margin-left:8px}
+.checkbox-wrapper .checkbox-svg{width:22px;height:22px;flex-shrink:0}
+.checkbox-wrapper .checkbox-box{fill:rgba(207,205,205,.15);stroke:var(--acc);stroke-dasharray:800;stroke-dashoffset:800;transition:stroke-dashoffset .6s ease-in}
+.checkbox-wrapper .checkbox-tick{stroke:var(--acc);stroke-dasharray:172;stroke-dashoffset:172;transition:stroke-dashoffset .6s ease-in}
+.checkbox-wrapper input[type="checkbox"]:checked + .terms-label .checkbox-box,
+.checkbox-wrapper input[type="checkbox"]:checked + .terms-label .checkbox-tick{stroke-dashoffset:0}
+.checkbox-wrapper input.cc-sim + .terms-label .checkbox-box,.checkbox-wrapper input.cc-sim + .terms-label .checkbox-tick{stroke:#16a34a}
+.checkbox-wrapper input.cc-ver + .terms-label .checkbox-box,.checkbox-wrapper input.cc-ver + .terms-label .checkbox-tick{stroke:#d97706}
+.checkbox-wrapper input.cc-nao + .terms-label .checkbox-box,.checkbox-wrapper input.cc-nao + .terms-label .checkbox-tick{stroke:#dc2626}
 @media (max-width:760px){.pol-check-bar{flex-direction:column;align-items:flex-start}}
 /* Dashboard (não-gerencial): oculta opção de filtro "Vencido" */
 body.mode-no-venc #fBucket option[value="Vencido"]{display:none}
@@ -757,9 +760,27 @@ tr:hover td{background:rgba(14,113,119,.04);cursor:pointer}
               <small>filtra toda a base por política</small>
             </div>
             <div class="pol-check-opts" id="polCheckOpts">
-              <label class="cyber-check-label"><input type="checkbox" class="cyber-check cc-sim" data-pol="SIM" checked onchange="aplicarPoliticaCheck()">Com política</label>
-              <label class="cyber-check-label"><input type="checkbox" class="cyber-check cc-ver" data-pol="Verificar C/ Industria" checked onchange="aplicarPoliticaCheck()">Verificar c/ indústria</label>
-              <label class="cyber-check-label"><input type="checkbox" class="cyber-check cc-nao" data-pol="NÃO" checked onchange="aplicarPoliticaCheck()">Sem política</label>
+              <div class="checkbox-wrapper">
+                <input type="checkbox" id="polChkSim" class="cyber-check cc-sim" data-pol="SIM" checked onchange="aplicarPoliticaCheck()">
+                <label class="terms-label" for="polChkSim">
+                  <svg viewBox="0 0 64 64" class="checkbox-svg"><path class="checkbox-box" fill-rule="evenodd" stroke-width="4" d="M 4 16.5 L 4 16.5 C 4 9.596 9.596 4 16.5 4 L 47.5 4 C 54.404 4 60 9.596 60 16.5 L 60 47.5 C 60 54.404 54.404 60 47.5 60 L 16.5 60 C 9.596 60 4 54.404 4 47.5 Z"></path><path class="checkbox-tick" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M18 32.5L27 40.5L46 21.5"></path></svg>
+                  <span class="label-text">Com política</span>
+                </label>
+              </div>
+              <div class="checkbox-wrapper">
+                <input type="checkbox" id="polChkVer" class="cyber-check cc-ver" data-pol="Verificar C/ Industria" checked onchange="aplicarPoliticaCheck()">
+                <label class="terms-label" for="polChkVer">
+                  <svg viewBox="0 0 64 64" class="checkbox-svg"><path class="checkbox-box" fill-rule="evenodd" stroke-width="4" d="M 4 16.5 L 4 16.5 C 4 9.596 9.596 4 16.5 4 L 47.5 4 C 54.404 4 60 9.596 60 16.5 L 60 47.5 C 60 54.404 54.404 60 47.5 60 L 16.5 60 C 9.596 60 4 54.404 4 47.5 Z"></path><path class="checkbox-tick" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M18 32.5L27 40.5L46 21.5"></path></svg>
+                  <span class="label-text">Verificar c/ indústria</span>
+                </label>
+              </div>
+              <div class="checkbox-wrapper">
+                <input type="checkbox" id="polChkNao" class="cyber-check cc-nao" data-pol="NÃO" checked onchange="aplicarPoliticaCheck()">
+                <label class="terms-label" for="polChkNao">
+                  <svg viewBox="0 0 64 64" class="checkbox-svg"><path class="checkbox-box" fill-rule="evenodd" stroke-width="4" d="M 4 16.5 L 4 16.5 C 4 9.596 9.596 4 16.5 4 L 47.5 4 C 54.404 4 60 9.596 60 16.5 L 60 47.5 C 60 54.404 54.404 60 47.5 60 L 16.5 60 C 9.596 60 4 54.404 4 47.5 Z"></path><path class="checkbox-tick" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M18 32.5L27 40.5L46 21.5"></path></svg>
+                  <span class="label-text">Sem política</span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -2800,7 +2821,13 @@ function calcWeekMetrics(data, excludeVenc=false){
     let valDate=null;
     if(valRaw instanceof Date){valDate=valRaw;}
     else if(typeof valRaw==='number'&&valRaw>1){valDate=new Date(Math.round((valRaw-25569)*86400*1000));}
-    else{const m=String(valRaw).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);if(m)valDate=new Date(+m[3],+m[2]-1,+m[1]);else valDate=new Date(valRaw);}
+    else{
+      const s=String(valRaw).trim();
+      const m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if(m)valDate=new Date(+m[3],+m[2]-1,+m[1]);
+      else if(/^\d{4,6}$/.test(s)){const n=+s;valDate=n>1?new Date(Math.round((n-25569)*86400*1000)):null;} // serial Excel salvo como texto (ex.: backlog vindo do Supabase)
+      else valDate=new Date(s);
+    }
     if(!valDate||isNaN(valDate))return null;
     valDate.setHours(0,0,0,0);
     return{...r,dias_para_vencer:Math.round((valDate-today)/86400000)};
@@ -3370,9 +3397,13 @@ function onAuthed(){
 // ── Mapeia linha do Excel → colunas da tabela ──
 function _sbToBR(v){
   if(v===''||v==null)return null;
+  if(v instanceof Date){if(!isNaN(v))return`${String(v.getDate()).padStart(2,'0')}/${String(v.getMonth()+1).padStart(2,'0')}/${v.getFullYear()}`;return null;}
   if(typeof v==='number'&&v>1){const d=new Date(Math.round((v-25569)*86400*1000));if(!isNaN(d))return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
-  const s=String(v).trim();const m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
-  if(m)return`${m[1].padStart(2,'0')}/${m[2].padStart(2,'0')}/${m[3]}`;return s;
+  const s=String(v).trim();
+  const m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m)return`${m[1].padStart(2,'0')}/${m[2].padStart(2,'0')}/${m[3]}`;
+  if(/^\d{4,6}$/.test(s)){const n=+s;if(n>1){const d=new Date(Math.round((n-25569)*86400*1000));if(!isNaN(d))return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}} // serial Excel vindo como texto
+  return s;
 }
 function _sbNum(v){if(v===''||v==null)return null;const n=parseFloat(String(v).replace(/[R$\s]/g,'').replace(',','.'));return isNaN(n)?null:n;}
 
@@ -3470,8 +3501,8 @@ async function pushToSupabase(newRows,filename){
       filial:        String(r['Filial']||r['filial']||''),
       produto:       String(r['Produto']||r['produto']||''),
       armazem:       r['Armazem']||r['armazem']||null,
-      data_entrada:  r['Data']||r['data_entrada']||null,
-      data_validade: r['Data Validad']||r['data_validade']||null,
+      data_entrada:  _sbToBR(r['Data']??r['data_entrada']),
+      data_validade: _sbToBR(r['Data Validad']??r['data_validade']),
       saldo_lote:    _sbNum(r['Saldo Lote']??r['saldo_lote']),
       emp_lote:      _sbNum(r['Emp. do Lote']??r['emp_lote']),
       lote_fornec:   r['Lote Fornec.']||r['lote_fornec']||null,
@@ -3488,7 +3519,7 @@ async function pushToSupabase(newRows,filename){
       potencia_lot:  _sbNum(r['Potencia Lot']??r['potencia_lot']),
       preco_lote:    _sbNum(r['Preco Lote']??r['preco_lote']),
       item_nf:       r['Item NF']||r['item_nf']||null,
-      data_fabric:   r['Data Fabric']||r['data_fabric']||null,
+      data_fabric:   _sbToBR(r['Data Fabric']??r['data_fabric']),
       dt_calc_fci:   r['Dt Calc. FCI']||r['dt_calc_fci']||null,
       vlr_imp_fci:   _sbNum(r['Vlr Imp. FCI']??r['vlr_imp_fci']),
       descricao:     r['DESCRIÇÃO']||r['Descricao']||r['descricao']||null,
@@ -3566,8 +3597,8 @@ async function pushToBacklog(newRows,filename){
       filial:        String(r['Filial']||r['filial']||''),
       produto:       String(r['Produto']||r['produto']||''),
       armazem:       r['Armazem']||r['armazem']||null,
-      data_entrada:  r['Data']||r['data_entrada']||null,
-      data_validade: r['Data Validad']||r['data_validade']||null,
+      data_entrada:  _sbToBR(r['Data']??r['data_entrada']),
+      data_validade: _sbToBR(r['Data Validad']??r['data_validade']),
       saldo_lote:    _sbNum(r['Saldo Lote']??r['saldo_lote']),
       emp_lote:      _sbNum(r['Emp. do Lote']??r['emp_lote']),
       lote_fornec:   r['Lote Fornec.']||r['lote_fornec']||null,
@@ -3584,7 +3615,7 @@ async function pushToBacklog(newRows,filename){
       potencia_lot:  _sbNum(r['Potencia Lot']??r['potencia_lot']),
       preco_lote:    _sbNum(r['Preco Lote']??r['preco_lote']),
       item_nf:       r['Item NF']||r['item_nf']||null,
-      data_fabric:   r['Data Fabric']||r['data_fabric']||null,
+      data_fabric:   _sbToBR(r['Data Fabric']??r['data_fabric']),
       dt_calc_fci:   r['Dt Calc. FCI']||r['dt_calc_fci']||null,
       vlr_imp_fci:   _sbNum(r['Vlr Imp. FCI']??r['vlr_imp_fci']),
       descricao:     r['DESCRIÇÃO']||r['Descricao']||r['descricao']||null,
