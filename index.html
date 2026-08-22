@@ -50,6 +50,17 @@ window.SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 /* ===== CONFIG SUPABASE 2 — projeto de origem da tabela politica_troca ===== */
 window.SB2_URL  = 'https://jotoppzikdlrmfvcnwrr.supabase.co';
 window.SB2_ANON = 'sb_publishable_hYDxM2-Ma7FcIHe4zs67tQ_Yrph6VRA';
+/* ===== CONFIG FOTO DO PRODUTO — Viveo Recebimento =====
+   {codigo} é substituído pelo SKU/código do produto. Se a foto não existir para
+   o produto, o modal cai automaticamente para "Buscar no Google Imagens". */
+window.VIVEO_FOTO_URL_TEMPLATE = 'https://money.viveo.com.br/vend/vendCFichaTecnicaProduto/InformacoesProduto/{codigo}.jpg';
+/* ===== CONFIG GOOGLE CUSTOM SEARCH — 2ª tentativa automática de foto =====
+   Confirmado: essa API envia Access-Control-Allow-Origin, funciona direto do
+   navegador (a SerpAPI testamos e NÃO funciona client-side, por isso voltamos
+   pra essa). Só falta o faturamento do projeto EXCELXSHEETS no Google Cloud
+   propagar — enquanto isso a chamada volta 403 e o modal cai no botão manual. */
+window.GOOGLE_CSE_API_KEY = 'AIzaSyAsIBHDi0Kv69PAsljUQxNOabLBVPnXUmk';
+window.GOOGLE_CSE_CX = '14a6bcb4c75924fac';
 </script>
 <style>
 /* ════════ AUTH GATE ════════ */
@@ -119,6 +130,11 @@ body.dark-mode{
   --card-hex:#141a29;--card-hex2:#242e44;--card-hex3:#0e1320;--card-hex4:#1c2436;
 }
 *{margin:0;padding:0;box-sizing:border-box}
+/* Transição suave ao trocar tema claro/escuro — exclui td/tr/th (milhares de
+   células na tabela grande) pra não travar/gaguejar a troca de tema; cobre o
+   resto (cards, botões, painéis) sem brigar com transições mais específicas
+   já definidas (hover de botão etc — essas têm prioridade por especificidade). */
+*:not(td):not(tr):not(th),*::before,*::after{transition:background-color .25s ease,color .25s ease,border-color .25s ease}
 html,body{height:100%;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px}
 body{background:var(--bg);color:var(--txt)}
 
@@ -250,7 +266,8 @@ body.dark-mode .hero{background:linear-gradient(135deg,var(--s1) 0%,var(--s2) 10
 .hero-kpis{display:grid;grid-template-columns:1.5fr repeat(3,1fr);gap:14px;margin-bottom:20px}
 .hkpi{background:transparent;border:1px solid transparent;border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;cursor:pointer;transition:transform .18s,border-color .2s;backdrop-filter:none}
 .hkpi:hover{transform:translateY(-2px);border-color:var(--b2)}
-.hkpi-ico{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;margin-bottom:13px;animation:hkpi-breathe 3.2s ease-in-out infinite}
+.hkpi-ico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;margin-bottom:13px;animation:hkpi-breathe 3.2s ease-in-out infinite}
+.hkpi-ico svg{width:21px;height:21px}
 .hkpi:nth-child(2) .hkpi-ico{animation-delay:.4s}
 .hkpi:nth-child(3) .hkpi-ico{animation-delay:.8s}
 .hkpi-validade .hkpi-ico{animation-delay:1.2s}
@@ -402,29 +419,78 @@ body.dark-mode .kpi-card{background:linear-gradient(135deg,var(--s1),var(--s2))}
 .pol-check-title{display:flex;align-items:center;gap:9px;font-size:14px;font-weight:800;color:var(--txt);letter-spacing:-.2px}
 .pol-check-title small{font-size:11.5px;font-weight:600;color:var(--txt3);font-family:Cambria,Georgia,serif;letter-spacing:.2px;margin-left:2px}
 .pol-check-opts{display:flex;gap:22px;flex-wrap:wrap}
-/* From Uiverse.io by PriyanshuGupta28 */
-.checkbox-wrapper{display:inline-flex;align-items:center}
-.checkbox-wrapper input[type="checkbox"]{display:none}
-.checkbox-wrapper .terms-label{cursor:pointer;display:flex;align-items:center;user-select:none;font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--txt2);font-family:'JetBrains Mono',monospace}
-.checkbox-wrapper .terms-label .label-text{margin-left:8px}
-.checkbox-wrapper .checkbox-svg{width:22px;height:22px;flex-shrink:0}
-.checkbox-wrapper .checkbox-box{fill:rgba(207,205,205,.15);stroke:var(--acc);stroke-dasharray:800;stroke-dashoffset:800;transition:stroke-dashoffset .6s ease-in}
-.checkbox-wrapper .checkbox-tick{stroke:var(--acc);stroke-dasharray:172;stroke-dashoffset:172;transition:stroke-dashoffset .6s ease-in}
-.checkbox-wrapper input[type="checkbox"]:checked + .terms-label .checkbox-box,
-.checkbox-wrapper input[type="checkbox"]:checked + .terms-label .checkbox-tick{stroke-dashoffset:0}
-.checkbox-wrapper input.cc-sim + .terms-label .checkbox-box,.checkbox-wrapper input.cc-sim + .terms-label .checkbox-tick{stroke:#16a34a}
-.checkbox-wrapper input.cc-ver + .terms-label .checkbox-box,.checkbox-wrapper input.cc-ver + .terms-label .checkbox-tick{stroke:#d97706}
-.checkbox-wrapper input.cc-nao + .terms-label .checkbox-box,.checkbox-wrapper input.cc-nao + .terms-label .checkbox-tick{stroke:#dc2626}
+/* From Uiverse.io by owehbeh — adaptado ao tema escuro + 3 variantes de cor */
+.checkbox-wrapper{position:relative;display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-family:'JetBrains Mono',monospace}
+.checkbox-wrapper .checkbox-input{position:absolute;opacity:0;width:20px;height:20px;margin:0;cursor:pointer}
+.checkbox-wrapper .checkbox-tile{position:relative;flex-shrink:0;width:20px;height:20px;background:transparent;border:2px solid var(--b2);border-radius:5px;transition:all .2s ease-in-out}
+.checkbox-wrapper:hover .checkbox-tile{border-color:var(--txt3)}
+.checkbox-wrapper .checkbox-input:focus-visible ~ .checkbox-tile{outline:2px solid var(--acc);outline-offset:2px}
+.checkbox-wrapper .checkmark{position:absolute;top:50%;left:50%;width:14px;height:14px;transform:translate(-50%,-50%)}
+.checkbox-wrapper .checkmark::before,.checkbox-wrapper .checkmark::after{content:'';position:absolute;background:var(--txt3);border-radius:2px;width:2px;height:14px;left:50%;top:0;transition:all .25s ease-out}
+.checkbox-wrapper .checkmark::before{transform:translateX(-50%) rotate(45deg)}
+.checkbox-wrapper .checkmark::after{transform:translateX(-50%) rotate(-45deg)}
+.checkbox-wrapper .checkbox-input:checked ~ .checkbox-tile .checkmark{animation:pol-check-rotate .6s ease-out forwards}
+.checkbox-wrapper .checkbox-input:checked ~ .checkbox-tile .checkmark::before{width:2px;height:7px;left:1px;top:5px;transform:rotate(-45deg);background:#fff}
+.checkbox-wrapper .checkbox-input:checked ~ .checkbox-tile .checkmark::after{width:2px;height:12px;left:8px;top:0;transform:rotate(45deg);background:#fff}
+.checkbox-wrapper input.cc-sim:checked ~ .checkbox-tile{background:#16a34a;border-color:#16a34a}
+.checkbox-wrapper input.cc-ver:checked ~ .checkbox-tile{background:#d97706;border-color:#d97706}
+.checkbox-wrapper input.cc-nao:checked ~ .checkbox-tile{background:#dc2626;border-color:#dc2626}
+.checkbox-wrapper .label-text{font-size:11px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:var(--txt2);user-select:none;transition:color .2s ease-out}
+.checkbox-wrapper input.cc-sim:checked ~ .label-text{color:#16a34a}
+.checkbox-wrapper input.cc-ver:checked ~ .label-text{color:#d97706}
+.checkbox-wrapper input.cc-nao:checked ~ .label-text{color:#dc2626}
+.checkbox-wrapper .checkbox-input:disabled ~ .checkbox-tile{opacity:.5;cursor:not-allowed;pointer-events:none}
+.checkbox-wrapper:active .checkbox-tile{transform:scale(.95)}
+@keyframes pol-check-rotate{0%{transform:translate(-50%,-50%) rotate(0deg)}70%{transform:translate(-50%,-50%) rotate(360deg)}85%{transform:translate(-50%,-50%) rotate(360deg) scale(1.15)}100%{transform:translate(-50%,-50%) rotate(360deg) scale(1)}}
 @media (max-width:760px){.pol-check-bar{flex-direction:column;align-items:flex-start}}
 /* Dashboard (não-gerencial): oculta opção de filtro "Vencido" */
 body.mode-no-venc #fBucket option[value="Vencido"]{display:none}
 /* Dashboard (não-gerencial): oculta cards/linhas de Vencido — só no Gerencial */
 body.mode-no-venc .venc-only{display:none!important}
-/* Lock animado no modal de senha */
-@keyframes lockBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-5px) rotate(3deg)}}
-@keyframes lockShackle{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
-#pwLockIco{animation:lockBob 2.2s ease-in-out infinite;transform-origin:center}
-#pwLockIco .shackle{animation:lockShackle 2.2s ease-in-out infinite}
+/* Lock animado no modal de senha — from Uiverse.io by Uncannypotato69, adaptado/escopado */
+.pwlock-label{--rotate-offset:45deg;--time-offset:200ms;--translate-offset:1rem;--delay:250ms;--total-duration:calc(var(--time-offset) + var(--delay) * 7);position:relative;height:3rem;aspect-ratio:1/1;display:flex;justify-content:center;align-items:center;margin:0 auto 16px;transition:transform var(--total-duration) ease-in-out}
+.pwlock-label input{position:absolute;opacity:0;pointer-events:none}
+.pwlock-bar{position:absolute;height:3rem;width:.25rem;border-radius:.125rem;background-color:#fff;top:-50%;transform-origin:bottom;z-index:0}
+#pwLockBar1{rotate:calc(var(--rotate-offset));transition:all var(--time-offset) ease-in;transition-delay:calc(var(--delay) * 0);transform:translateY(calc(var(--translate-offset) * -1))}
+#pwLockBar2{rotate:calc(var(--rotate-offset) * 2);transition:all var(--time-offset) ease-in;transition-delay:calc(var(--delay) * 1);transform:translateY(calc(var(--translate-offset) * -1))}
+#pwLockBar3{rotate:calc(var(--rotate-offset) * 3);transition:all var(--time-offset) ease-in;transition-delay:calc(var(--delay) * 2);transform:translateY(calc(var(--translate-offset) * -1))}
+#pwLockBar4{rotate:calc(var(--rotate-offset) * 4);transition:all var(--time-offset) ease-in;transition-delay:calc(var(--delay) * 3);transform:translateY(calc(var(--translate-offset) * -1))}
+#pwLockBar5{rotate:calc(var(--rotate-offset) * 5);transition:all var(--time-offset) ease-in;transition-delay:calc(var(--delay) * 4);transform:translateY(calc(var(--translate-offset) * -1))}
+#pwLockBar6{rotate:calc(var(--rotate-offset) * 6);transition:all var(--time-offset) ease-in;transition-delay:calc(var(--delay) * 5);transform:translateY(calc(var(--translate-offset) * -1))}
+#pwLockBar7{rotate:calc(var(--rotate-offset) * 7);transition:all var(--time-offset) ease-in;transition-delay:calc(var(--delay) * 6);transform:translateY(calc(var(--translate-offset) * -1))}
+#pwLockBar8{rotate:calc(var(--rotate-offset) * 8);transition:all var(--time-offset) ease-in;transition-delay:calc(var(--delay) * 7);transform:translateY(calc(var(--translate-offset) * -1))}
+#pwLockCk:checked ~ #pwLockBar1{transform:translateY(0);background-color:#ffadad}
+#pwLockCk:checked ~ #pwLockBar2{transform:translateY(0);background-color:#ffd6a5}
+#pwLockCk:checked ~ #pwLockBar3{transform:translateY(0);background-color:#fdffb6}
+#pwLockCk:checked ~ #pwLockBar4{transform:translateY(0);background-color:#caffbf}
+#pwLockCk:checked ~ #pwLockBar5{transform:translateY(0);background-color:#9bf6ff}
+#pwLockCk:checked ~ #pwLockBar6{transform:translateY(0);background-color:#a0c4ff}
+#pwLockCk:checked ~ #pwLockBar7{transform:translateY(0);background-color:#bdb2ff}
+#pwLockCk:checked ~ #pwLockBar8{transform:translateY(0);background-color:#ffc6ff}
+.pwlock-cover{height:4rem;aspect-ratio:1/1;border-radius:50%;background:#2a3439;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.pwlock-label:has(:checked){transform:rotate(-360deg)}
+.pwlock-cover2{height:2rem;aspect-ratio:1/1;border-radius:50%;background:#91a3b0;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);outline-width:.25rem;outline:solid;outline-color:var(--acc)}
+.pwlock-inCover2{height:100%;aspect-ratio:1/1;position:relative;border-radius:50%;overflow:hidden}
+.pwlock-inCover2 .pwlock-rainbow{height:100%;width:100%;top:50%;left:50%;transform:translate(-50%,-50%);position:absolute;display:flex;flex-direction:column;justify-content:center;align-items:center}
+.pwlock-rainbow div{flex:1;width:100%}
+.pwlock-rainbow div:nth-child(1){background-color:#ffadad}
+.pwlock-rainbow div:nth-child(2){background-color:#ffd6a5}
+.pwlock-rainbow div:nth-child(3){background-color:#fdffb6}
+.pwlock-rainbow div:nth-child(4){background-color:#caffbf}
+.pwlock-rainbow div:nth-child(5){background-color:#9bf6ff}
+.pwlock-rainbow div:nth-child(6){background-color:#a0c4ff}
+.pwlock-rainbow div:nth-child(7){background-color:#bdb2ff}
+.pwlock-nut{height:.3rem;aspect-ratio:1/1;background-color:#fff;border-radius:50%;position:absolute;z-index:2;top:0;transform:translateY(-5px);transform-origin:50% 500%}
+#pwLockNut1{rotate:calc(var(--rotate-offset))}
+#pwLockNut2{rotate:calc(var(--rotate-offset) * 2)}
+#pwLockNut3{rotate:calc(var(--rotate-offset) * 3)}
+#pwLockNut4{rotate:calc(var(--rotate-offset) * 4)}
+#pwLockNut5{rotate:calc(var(--rotate-offset) * 5)}
+#pwLockNut6{rotate:calc(var(--rotate-offset) * 6)}
+#pwLockNut7{rotate:calc(var(--rotate-offset) * 7)}
+#pwLockNut8{rotate:calc(var(--rotate-offset) * 8)}
+.pwlock-icon{position:absolute;height:1.5rem;aspect-ratio:1/1;top:50%;left:50%;transform:translate(-50%,-50%);opacity:0;transition:opacity 200ms ease-in;transition-delay:var(--total-duration)}
+#pwLockCk:checked ~ .pwlock-icon{opacity:1}
 
 /* ── GERENCIAL PANELS — Produtos / Laboratórios / Tipos ── */
 .pol-bar{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--s1);border:1px solid var(--b1);border-radius:12px;padding:14px 18px;margin-top:18px;flex-wrap:wrap}
@@ -455,9 +521,9 @@ body.mode-no-venc .venc-only{display:none!important}
 .gp-body::-webkit-scrollbar-thumb{background:var(--b2);border-radius:3px}
 .gp-row{display:grid;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;background:var(--s2);border:1px solid var(--b1);cursor:pointer;transition:all .15s}
 .gp-row:hover{transform:translateX(2px);border-color:var(--acc);background:var(--card-hex)}
-.gp-row-prod{grid-template-columns:62px 1fr 90px 105px 14px}
-.gp-row-lab{grid-template-columns:1fr 90px 105px 14px}
-.gp-row-cat{grid-template-columns:1fr 90px 105px 14px}
+.gp-row-prod{grid-template-columns:62px 1fr 110px 140px 14px}
+.gp-row-lab{grid-template-columns:1fr 110px 140px 14px}
+.gp-row-cat{grid-template-columns:1fr 110px 140px 14px}
 .gp-prod{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:var(--acc);letter-spacing:-.2px}
 .gp-name{font-size:14.5px;color:var(--txt);font-weight:700;line-height:1.3;letter-spacing:-.1px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .gp-meta{font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--txt3);font-family:'JetBrains Mono',monospace;margin-top:4px;text-transform:uppercase;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto}
@@ -465,10 +531,10 @@ body.mode-no-venc .venc-only{display:none!important}
 .gp-tags{display:flex;gap:4px;margin-top:5px;flex-wrap:nowrap;overflow-x:auto}
 .gp-tag-mini{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:5px;background:var(--s1);border:1px solid var(--b1);font-size:10px;font-weight:800;font-family:'JetBrains Mono',monospace;letter-spacing:.2px;line-height:1.5;white-space:nowrap}
 .gp-tag-mini b{font-weight:900}
-.gp-qty{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:900;color:var(--txt);text-align:right;line-height:1.05;letter-spacing:-.3px}
-.gp-qty small{display:block;font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--txt3);margin-top:3px}
-.gp-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:900;color:var(--acc);text-align:right;line-height:1.05;letter-spacing:-.4px}
-.gp-val small{display:block;font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--txt3);margin-top:3px}
+.gp-qty{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:900;color:var(--txt);text-align:right;line-height:1.05;letter-spacing:-.3px;white-space:nowrap}
+.gp-qty small{display:inline;font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--txt3);margin-left:5px}
+.gp-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:900;color:var(--acc);text-align:right;line-height:1.05;letter-spacing:-.4px;white-space:nowrap}
+.gp-val small{display:inline;font-size:10px;font-weight:800;letter-spacing:.5px;color:var(--txt3);margin-left:5px}
 .gp-arrow{color:var(--txt3);opacity:.45;transition:transform .15s}
 .gp-row:hover .gp-arrow{transform:translateX(2px);color:var(--acc);opacity:1}
 .gp-empty{color:var(--txt3);font-size:12px;padding:24px 16px;text-align:center;font-style:italic}
@@ -496,7 +562,7 @@ body.mode-no-venc .venc-only{display:none!important}
 /* Hide "180d+" bucket option when filtering risk-only */
 body.hide-safe-mode #fBucket option[value="180d+"]{display:none}
 body.hide-safe-mode .filter-row::before{content:'⚠ MODO RISCO · 180d+ oculto';display:inline-flex;align-items:center;padding:6px 12px;border-radius:7px;background:rgba(248,113,113,.1);color:#dc2626;font-size:10px;font-weight:800;letter-spacing:1px;font-family:'JetBrains Mono',monospace;text-transform:uppercase;border:1px solid rgba(248,113,113,.25);cursor:default}
-@media (max-width:700px){.gp-row-prod{grid-template-columns:80px 1fr 100px 16px}.gp-row-lab,.gp-row-cat{grid-template-columns:1fr 100px 16px}.gp-row .gp-val{display:none}}
+@media (max-width:700px){.gp-row-prod{grid-template-columns:80px 1fr 120px 16px}.gp-row-lab,.gp-row-cat{grid-template-columns:1fr 120px 16px}.gp-row .gp-val{display:none}}
 .ac-err{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.28);color:#b82000}
 .ac-warn{background:rgba(251,191,36,.07);border-color:rgba(251,191,36,.3);color:#92600a}
 .ac-amber{background:rgba(240,176,32,.07);border-color:rgba(240,176,32,.28);color:#7a5000}
@@ -527,7 +593,7 @@ body.hide-safe-mode .filter-row::before{content:'⚠ MODO RISCO · 180d+ oculto'
 .tbl-wrap{overflow:auto;flex:1;min-height:0}
 table{width:100%;border-collapse:separate;border-spacing:0;min-width:1120px;font-family:'JetBrains Mono',monospace}
 thead{position:sticky;top:0;z-index:2}
-th{padding:9px 12px;font-size:8px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;color:var(--txt3);background:var(--s2);border-bottom:1px solid var(--b1);white-space:nowrap;cursor:pointer;text-align:left;position:sticky;top:0;z-index:2}
+th{padding:9px 12px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;color:var(--txt3);background:var(--s2);border-bottom:1px solid var(--b1);white-space:nowrap;cursor:pointer;text-align:left;position:sticky;top:0;z-index:2}
 th:hover{color:var(--txt)}
 th.sort-asc::after{content:' ↑';color:var(--acc)}
 th.sort-desc::after{content:' ↓';color:var(--acc)}
@@ -594,6 +660,65 @@ tr:hover td{background:rgba(14,113,119,.04);cursor:pointer}
 .lm-hero{padding:24px 26px 0}
 .lm-top-bar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px;padding-right:40px}
 .lm-badge-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:2px}
+.lm-foto-btn{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--acc);background:rgba(11,94,99,.08);border:1px solid rgba(11,94,99,.22);cursor:pointer;transition:all .15s}
+.lm-foto-btn:hover{background:rgba(11,94,99,.16);border-color:rgba(11,94,99,.4)}
+
+/* ── MODAL FOTO DO PRODUTO — card completo ── */
+.fm-modal{overflow:hidden}
+.fm-grid{display:grid;grid-template-columns:460px 1fr;max-height:92vh}
+@media (max-width:680px){.fm-grid{grid-template-columns:1fr;overflow-y:auto}}
+.fm-photo-col{background:var(--s1);padding:22px;display:flex;flex-direction:column;align-items:center;border-right:1px solid var(--b1)}
+.fm-stage{width:100%;aspect-ratio:1/1;border-radius:14px;background:var(--s2);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;cursor:default}
+.fm-stage.fm-has-img{cursor:zoom-in}
+.fm-stage img{width:100%;height:100%;object-fit:contain;transition:transform .25s ease}
+.fm-stage.fm-zoomed{cursor:grab;overflow:auto;touch-action:none;scrollbar-width:none}
+.fm-stage.fm-zoomed::-webkit-scrollbar{display:none}
+.fm-stage.fm-zoomed:active{cursor:grabbing}
+.fm-stage.fm-zoomed img{width:190%;height:190%;max-width:none;object-fit:cover;transition:none}
+.fm-photo-actions{display:flex;gap:6px;margin-top:12px;width:100%}
+.fm-act-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 8px;border-radius:8px;border:1px solid var(--b2);background:var(--s2);color:var(--txt2);font-size:10.5px;font-weight:700;cursor:pointer;transition:all .15s;font-family:'Plus Jakarta Sans',sans-serif;white-space:nowrap}
+.fm-act-btn:hover:not(:disabled){border-color:var(--acc);color:var(--acc)}
+.fm-act-btn:disabled{opacity:.4;cursor:not-allowed}
+.fm-info-col{padding:26px 28px;overflow-y:auto;max-height:92vh}
+.fm-eyebrow{font-size:10.5px;font-weight:800;letter-spacing:1px;color:var(--txt3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:5px}
+.fm-title{font-size:15.5px;font-weight:800;color:var(--txt);letter-spacing:-.2px;line-height:1.3;margin-bottom:10px;font-family:'Plus Jakarta Sans',sans-serif}
+.fm-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
+.fm-score-wrap{margin-bottom:22px}
+.fm-score-head{display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;font-weight:700;color:var(--txt2);margin-bottom:7px;font-family:'Plus Jakarta Sans',sans-serif}
+.fm-score-head b{font-size:15px;font-family:'JetBrains Mono',monospace;color:var(--txt)}
+.fm-score-bar{height:10px;border-radius:6px;background:linear-gradient(90deg,#f87171,#fb923c,#f0b020,#a3e635,#22c55e);border:1px solid var(--b1);overflow:hidden;position:relative}
+.fm-score-fill{position:absolute;top:0;right:0;height:100%;width:0%;background:var(--s2);border-left:2px solid var(--s1);transition:width .6s ease}
+.fm-section-lbl{display:flex;align-items:center;gap:7px;font-size:9.5px;font-weight:800;letter-spacing:1.5px;color:var(--txt3);text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin:14px 0 8px}
+.fm-section-lbl svg{flex-shrink:0;opacity:.7;width:14px;height:14px}
+.fm-timeline{display:flex;justify-content:space-between;position:relative;padding:2px 2px 0}
+.fm-timeline::before{content:'';position:absolute;top:19px;left:19px;right:19px;height:2px;background:linear-gradient(90deg,var(--b2),var(--acc),var(--b2));z-index:0}
+.fm-tl-node{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:7px;flex:1;min-width:0;cursor:default;transition:transform .2s ease;border-radius:10px;padding:4px 2px}
+.fm-tl-node:hover{transform:translateY(-4px)}
+.fm-tl-dot{width:38px;height:38px;border-radius:50%;background:var(--s1);border:2px solid var(--b2);flex-shrink:0;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.12);transition:all .2s ease}
+.fm-tl-dot svg{width:19px;height:19px;transition:all .2s ease}
+.fm-tl-node:hover .fm-tl-dot{transform:scale(1.18);background:currentColor;box-shadow:0 6px 18px currentColor}
+.fm-tl-node:hover .fm-tl-dot svg{stroke:var(--s1)}
+.fm-tl-lbl{font-size:8.5px;font-weight:800;letter-spacing:.5px;color:var(--txt3);text-transform:uppercase;font-family:'JetBrains Mono',monospace;transition:color .2s ease}
+.fm-tl-val{font-size:10.5px;font-weight:700;color:var(--txt2);font-family:'JetBrains Mono',monospace;white-space:nowrap;transition:color .2s ease}
+.fm-tl-node:hover .fm-tl-lbl{color:var(--txt)}
+.fm-tl-node:hover .fm-tl-val{color:var(--txt);font-weight:800}
+.fm-stat-highlight{display:flex;align-items:center;justify-content:space-between;gap:10px;background:linear-gradient(135deg,rgba(11,94,99,.14),rgba(11,94,99,.05));border:1px solid rgba(11,94,99,.3);border-radius:10px;padding:12px 14px;margin-bottom:8px}
+.fm-stat-highlight-lbl{display:flex;align-items:center;gap:7px;font-size:10.5px;font-weight:700;color:var(--acc);font-family:'Plus Jakarta Sans',sans-serif}
+.fm-stat-highlight-val{font-size:18px;font-weight:900;color:var(--acc);font-family:'JetBrains Mono',monospace;letter-spacing:-.3px}
+.fm-stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:4px}
+.fm-stat{display:flex;align-items:flex-start;gap:9px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:8px 10px;transition:border-color .15s}
+.fm-stat:hover{border-color:var(--b2)}
+.fm-stat-ico{flex-shrink:0;width:28px;height:28px;border-radius:7px;background:var(--s1);display:flex;align-items:center;justify-content:center;color:var(--txt3);margin-top:1px}
+.fm-stat-ico svg{width:16px;height:16px}
+.fm-stat-body{min-width:0}
+.fm-stat-lbl{font-size:8.5px;font-weight:800;letter-spacing:.5px;color:var(--txt3);text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:3px}
+.fm-stat-val{font-size:12.5px;font-weight:800;color:var(--txt);font-family:'JetBrains Mono',monospace;word-break:break-word}
+#fmLightboxBg{cursor:zoom-out}
+.fm-ficha{width:100%;margin-top:12px;background:var(--s2);border:1px solid var(--b1);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:7px}
+.fm-ficha-row{display:flex;justify-content:space-between;gap:10px;font-size:11px}
+.fm-ficha-lbl{color:var(--txt3);font-weight:700;font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.fm-ficha-val{color:var(--txt2);font-weight:600;text-align:right;word-break:break-word}
+.fm-ficha-title{display:flex;align-items:center;gap:6px;font-size:9.5px;font-weight:800;letter-spacing:1px;color:var(--txt3);text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-bottom:2px}
 .lm-filial-tag{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;font-family:'JetBrains Mono',monospace;letter-spacing:.4px;color:var(--txt3);background:var(--s2);border:1px solid var(--b1);border-radius:6px;padding:4px 10px}
 .lm-corner{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 /* flip-switch estilo Uiverse (pharmacist-sabot) — duas abas, fundo claro, flip 3D ao trocar */
@@ -855,32 +980,26 @@ tr:hover td{background:rgba(14,113,119,.04);cursor:pointer}
           <!-- POLÍTICA DE DEVOLUÇÃO — checkboxes no topo do hero -->
           <div class="pol-check-bar">
             <div class="pol-check-title">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
               <span>Política de Devolução</span>
               <small>filtra toda a base por política</small>
             </div>
             <div class="pol-check-opts" id="polCheckOpts">
-              <div class="checkbox-wrapper">
-                <input type="checkbox" id="polChkSim" class="cyber-check cc-sim" data-pol="POLITICA" checked onchange="aplicarPoliticaCheck()">
-                <label class="terms-label" for="polChkSim">
-                  <svg viewBox="0 0 64 64" class="checkbox-svg"><path class="checkbox-box" fill-rule="evenodd" stroke-width="4" d="M 4 16.5 L 4 16.5 C 4 9.596 9.596 4 16.5 4 L 47.5 4 C 54.404 4 60 9.596 60 16.5 L 60 47.5 C 60 54.404 54.404 60 47.5 60 L 16.5 60 C 9.596 60 4 54.404 4 47.5 Z"></path><path class="checkbox-tick" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M18 32.5L27 40.5L46 21.5"></path></svg>
-                  <span class="label-text">Com política</span>
-                </label>
-              </div>
-              <div class="checkbox-wrapper">
-                <input type="checkbox" id="polChkVer" class="cyber-check cc-ver" data-pol="VERIFICAR" checked onchange="aplicarPoliticaCheck()">
-                <label class="terms-label" for="polChkVer">
-                  <svg viewBox="0 0 64 64" class="checkbox-svg"><path class="checkbox-box" fill-rule="evenodd" stroke-width="4" d="M 4 16.5 L 4 16.5 C 4 9.596 9.596 4 16.5 4 L 47.5 4 C 54.404 4 60 9.596 60 16.5 L 60 47.5 C 60 54.404 54.404 60 47.5 60 L 16.5 60 C 9.596 60 4 54.404 4 47.5 Z"></path><path class="checkbox-tick" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M18 32.5L27 40.5L46 21.5"></path></svg>
-                  <span class="label-text">Verificar c/ indústria</span>
-                </label>
-              </div>
-              <div class="checkbox-wrapper">
-                <input type="checkbox" id="polChkNao" class="cyber-check cc-nao" data-pol="SEM" checked onchange="aplicarPoliticaCheck()">
-                <label class="terms-label" for="polChkNao">
-                  <svg viewBox="0 0 64 64" class="checkbox-svg"><path class="checkbox-box" fill-rule="evenodd" stroke-width="4" d="M 4 16.5 L 4 16.5 C 4 9.596 9.596 4 16.5 4 L 47.5 4 C 54.404 4 60 9.596 60 16.5 L 60 47.5 C 60 54.404 54.404 60 47.5 60 L 16.5 60 C 9.596 60 4 54.404 4 47.5 Z"></path><path class="checkbox-tick" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M18 32.5L27 40.5L46 21.5"></path></svg>
-                  <span class="label-text">Sem política</span>
-                </label>
-              </div>
+              <label class="checkbox-wrapper" for="polChkSim">
+                <input type="checkbox" id="polChkSim" class="cyber-check cc-sim checkbox-input" data-pol="POLITICA" checked onchange="aplicarPoliticaCheck()">
+                <span class="checkbox-tile"><span class="checkmark"></span></span>
+                <span class="label-text">Com política</span>
+              </label>
+              <label class="checkbox-wrapper" for="polChkVer">
+                <input type="checkbox" id="polChkVer" class="cyber-check cc-ver checkbox-input" data-pol="VERIFICAR" checked onchange="aplicarPoliticaCheck()">
+                <span class="checkbox-tile"><span class="checkmark"></span></span>
+                <span class="label-text">Verificar c/ indústria</span>
+              </label>
+              <label class="checkbox-wrapper" for="polChkNao">
+                <input type="checkbox" id="polChkNao" class="cyber-check cc-nao checkbox-input" data-pol="SEM" checked onchange="aplicarPoliticaCheck()">
+                <span class="checkbox-tile"><span class="checkmark"></span></span>
+                <span class="label-text">Sem política</span>
+              </label>
             </div>
           </div>
 
@@ -1314,9 +1433,36 @@ tr:hover td{background:rgba(14,113,119,.04);cursor:pointer}
 <!-- SENHA · DASHBOARD GERENCIAL -->
 <div class="modal-bg" id="pwBg" onclick="if(event.target===this)closePw()">
   <div class="modal" style="width:min(380px,92vw);padding:28px;text-align:center">
-    <div style="width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,#0e7177,#0b5e63);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:0 4px 12px rgba(11,94,99,.28)">
-      <svg id="pwLockIco" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path class="shackle" d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    </div>
+    <label class="pwlock-label" for="pwLockCk">
+      <input id="pwLockCk" type="checkbox" tabindex="-1" aria-hidden="true">
+      <span id="pwLockBar1" class="pwlock-bar"></span>
+      <span id="pwLockBar2" class="pwlock-bar"></span>
+      <span id="pwLockBar3" class="pwlock-bar"></span>
+      <span id="pwLockBar4" class="pwlock-bar"></span>
+      <span id="pwLockBar5" class="pwlock-bar"></span>
+      <span id="pwLockBar6" class="pwlock-bar"></span>
+      <span id="pwLockBar7" class="pwlock-bar"></span>
+      <span id="pwLockBar8" class="pwlock-bar"></span>
+      <span id="pwLockNut1" class="pwlock-nut"></span>
+      <span id="pwLockNut2" class="pwlock-nut"></span>
+      <span id="pwLockNut3" class="pwlock-nut"></span>
+      <span id="pwLockNut4" class="pwlock-nut"></span>
+      <span id="pwLockNut5" class="pwlock-nut"></span>
+      <span id="pwLockNut6" class="pwlock-nut"></span>
+      <span id="pwLockNut7" class="pwlock-nut"></span>
+      <span id="pwLockNut8" class="pwlock-nut"></span>
+      <span class="pwlock-cover"></span>
+      <span class="pwlock-cover2">
+        <span class="pwlock-inCover2">
+          <span class="pwlock-rainbow">
+            <div></div><div></div><div></div><div></div><div></div><div></div><div></div>
+          </span>
+        </span>
+      </span>
+      <svg class="pwlock-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <path stroke-linejoin="round" stroke-linecap="round" stroke-width="2" stroke="#2A3439" d="M7 10.0288C7.47142 10 8.05259 10 8.8 10H15.2C15.9474 10 16.5286 10 17 10.0288M7 10.0288C6.41168 10.0647 5.99429 10.1455 5.63803 10.327C5.07354 10.6146 4.6146 11.0735 4.32698 11.638C4 12.2798 4 13.1198 4 14.8V16.2C4 17.8802 4 18.7202 4.32698 19.362C4.6146 19.9265 5.07354 20.3854 5.63803 20.673C6.27976 21 7.11984 21 8.8 21H15.2C16.8802 21 17.7202 21 18.362 20.673C18.9265 20.3854 19.3854 19.9265 19.673 19.362C20 18.7202 20 17.8802 20 16.2V14.8C20 13.1198 20 12.2798 19.673 11.638C19.3854 11.0735 18.9265 10.6146 18.362 10.327C18.0057 10.1455 17.5883 10.0647 17 10.0288M7 10.0288V8C7 5.23858 9.23858 3 12 3C14.7614 3 17 5.23858 17 8V10.0288"></path>
+      </svg>
+    </label>
     <div style="font-size:17px;font-weight:800;color:var(--txt);letter-spacing:-.3px;margin-bottom:4px">Dashboard Gerencial</div>
     <div style="font-size:12.5px;color:var(--txt3);font-family:Cambria,Georgia,serif;margin-bottom:18px">Área restrita — informe a senha de acesso</div>
     <input type="password" id="pwInput" autocomplete="off" placeholder="Senha de acesso"
@@ -1363,6 +1509,71 @@ tr:hover td{background:rgba(14,113,119,.04);cursor:pointer}
       <button class="btn btn-dk" onclick="closeFilM()">Fechar</button>
     </div>
   </div>
+</div>
+
+<!-- MODAL: TIPO DE PRODUTO → LABORATÓRIOS -->
+<div class="modal-bg" id="tipoModalBg" onclick="if(event.target===this)closeTipoM()">
+  <div class="modal" style="width:min(620px,95vw);max-height:90vh;padding:24px">
+    <button class="modal-close" onclick="closeTipoM()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="modal-ttl" id="tipoMTtl" style="display:block;background:none;-webkit-text-fill-color:initial;color:var(--txt);font-size:18px;font-weight:800;margin-bottom:6px">Tipo —</div>
+    <div class="modal-sub" id="tipoMSub" style="display:block;color:var(--txt3);margin-bottom:18px">—</div>
+    <div style="font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt3);font-family:'JetBrains Mono',monospace;margin-bottom:10px;display:flex;justify-content:space-between;padding:0 2px">
+      <span>LABORATÓRIO</span><span>LOTES · VALOR EXPOSTO</span>
+    </div>
+    <div id="tipoMTbl" style="display:flex;flex-direction:column;margin-bottom:18px;border:1px solid var(--b1);border-radius:10px;overflow:hidden"></div>
+    <div style="display:flex;gap:8px;padding-top:14px;border-top:1px solid var(--b1)">
+      <button class="btn btn-acc" id="tipoMVerBtn" style="display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>Ver todos os lotes deste tipo</button>
+      <button class="btn btn-dk" onclick="closeTipoM()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: FOTO DO PRODUTO (card completo — foto + timeline + score + estoque + financeiro) -->
+<div class="modal-bg" id="fotoModalBg" onclick="if(event.target===this)closeFotoModal()">
+  <div class="modal fm-modal" style="width:min(1100px,96vw);max-height:92vh;padding:0">
+    <button class="modal-close" onclick="closeFotoModal()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="fm-grid">
+      <div class="fm-photo-col">
+        <div id="fotoModalStage" class="fm-stage" onclick="fmToggleZoom()">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--txt3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        </div>
+        <div class="fm-photo-actions">
+          <button type="button" class="fm-act-btn" id="fmZoomBtn" onclick="fmToggleZoom()" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>Zoom</button>
+          <button type="button" class="fm-act-btn" id="fmDownloadBtn" onclick="fmDownloadFoto()" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download</button>
+          <button type="button" class="fm-act-btn" id="fmExpandBtn" onclick="fmExpandFoto()" disabled><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>Expandir</button>
+        </div>
+        <div id="fotoModalGoogle" style="display:none;margin-top:10px;width:100%"></div>
+      </div>
+      <div class="fm-info-col">
+        <div class="fm-eyebrow" id="fmSku">SKU —</div>
+        <div class="fm-title" id="fmNome">—</div>
+        <div class="fm-tags" id="fmTags"></div>
+
+        <div class="fm-score-wrap" id="fmScoreWrap">
+          <div class="fm-score-head"><span>Saúde do Lote</span><b id="fmScoreVal">—</b></div>
+          <div class="fm-score-bar"><div class="fm-score-fill" id="fmScoreFill"></div></div>
+        </div>
+
+        <div class="fm-section-lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>Linha do tempo</div>
+        <div class="fm-timeline" id="fmTimeline"></div>
+
+        <div class="fm-section-lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Estoque</div>
+        <div class="fm-stat-highlight" id="fmSaldoTotal"></div>
+        <div class="fm-stat-grid" id="fmEstoque"></div>
+
+        <div class="fm-section-lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg>Política & NF</div>
+        <div class="fm-stat-grid" id="fmPolitica"></div>
+
+        <div class="fm-section-lbl"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M9 9c0-1.4 1.3-2.5 3-2.5s3 1 3 2-1.3 1.8-3 2-3 1-3 2 1.3 2.5 3 2.5 3-1.1 3-2.5"/></svg>Financeiro</div>
+        <div class="fm-stat-grid" id="fmFinanceiro"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox — "Expandir" do modal de foto -->
+<div class="modal-bg" id="fmLightboxBg" onclick="fmCloseLightbox()" style="z-index:2100">
+  <img id="fmLightboxImg" src="" alt="" style="max-width:92vw;max-height:92vh;object-fit:contain;border-radius:12px;box-shadow:0 24px 70px rgba(0,0,0,.5)">
 </div>
 
 <!-- TOAST -->
@@ -1499,6 +1710,43 @@ function initTheme(){
 }
 const fN=v=>Number(v||0).toLocaleString('pt-BR',{maximumFractionDigits:1});
 const fCur=v=>{if(!v||v<=0)return null;if(v>=1e9)return'R$ '+(v/1e9).toFixed(2)+'B';if(v>=1e6)return'R$ '+(v/1e6).toFixed(2)+'M';if(v>=1e3)return'R$ '+(v/1e3).toFixed(1)+'K';return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});};
+
+// ─── CONTADOR ANIMADO — todo indicador numérico sobe de 0 até o valor final
+// sempre que um filtro muda os dados (nunca mostra o número final "seco").
+// Cancela a animação anterior do mesmo elemento antes de iniciar outra, pra
+// não acumular RAFs quando o usuário troca de filtro rápido.
+function animateNumber(el,target,fmt,dur){
+  if(!el)return;
+  target=Math.max(0,Number(target)||0); // indicador nunca é negativo — trava defensiva
+  if(el.__animRaf){cancelAnimationFrame(el.__animRaf);el.__animRaf=null;}
+  const fmtFn=fmt||(v=>Math.round(v).toLocaleString('pt-BR'));
+  const duration=dur||1400; // mais devagar — efeito de "carregando" bem visível
+  const ease=t=>1-Math.pow(1-t,4); // ease-out mais suave, desacelera bem gradual no final
+  const t0=performance.now();
+  const step=now=>{
+    // clamp dos dois lados — sem o Math.max(0,...) o "p" pode nascer levemente
+    // negativo no primeiro frame (diferença de precisão entre performance.now()
+    // e o timestamp do rAF), e a curva de suavização vira negativa nesse ponto,
+    // multiplicando o alvo por um número negativo (a causa real do bug).
+    const p=Math.max(0,Math.min(1,(now-t0)/duration));
+    el.textContent=fmtFn(p>=1?target:target*ease(p));
+    if(p<1)el.__animRaf=requestAnimationFrame(step);
+    else el.__animRaf=null;
+  };
+  el.__animRaf=requestAnimationFrame(step);
+}
+// Variante pra quando o valor pode ser 0/ausente e o texto "final" nesse caso
+// não é um número (ex: "—"). Anima normalmente quando há valor; senão, aplica
+// o texto de fallback direto (não faz sentido "contar até um traço").
+function animateNumberOrFallback(el,target,fmt,fallback){
+  if(!el)return;
+  if(!target||target<=0){
+    if(el.__animRaf){cancelAnimationFrame(el.__animRaf);el.__animRaf=null;}
+    el.textContent=fallback;
+    return;
+  }
+  animateNumber(el,target,fmt);
+}
 const valOf=arr=>arr.reduce((s,r)=>s+((r.Valor||0)*(r['Saldo Lote']||0)),0);
 function ic(name,size=16){
   const a=`width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"`;
@@ -1547,20 +1795,23 @@ function toggleSB(){
 let gerAuth=false;
 const _GH='63fd53ab3143813a13e7ee3dc74457b93bc398cfabd3554a5986cf7053cc6f46';
 function abrirSenha(){
-  const i=document.getElementById('pwInput'),e=document.getElementById('pwErr');
-  if(i)i.value='';if(e)e.textContent='';
+  const i=document.getElementById('pwInput'),e=document.getElementById('pwErr'),ck=document.getElementById('pwLockCk');
+  if(i)i.value='';if(e)e.textContent='';if(ck)ck.checked=false;
   document.getElementById('pwBg').classList.add('open');
   setTimeout(()=>i&&i.focus(),60);
 }
 function closePw(){document.getElementById('pwBg').classList.remove('open');}
 async function validarSenha(){
-  const i=document.getElementById('pwInput'),e=document.getElementById('pwErr');
+  const i=document.getElementById('pwInput'),e=document.getElementById('pwErr'),ck=document.getElementById('pwLockCk');
   const val=i?i.value:'';
   try{
     const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(val));
     const hex=[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
     if(hex===_GH){
-      gerAuth=true;closePw();showScr('dashger');
+      gerAuth=true;
+      if(i)i.disabled=true;
+      if(ck)ck.checked=true; // dispara a animação do cadeado abrindo
+      setTimeout(()=>{closePw();showScr('dashger');if(i)i.disabled=false;},1900);
     }else{
       if(e)e.textContent='Senha incorreta';
       if(i){i.value='';i.style.borderColor='var(--err)';setTimeout(()=>i.style.borderColor='',1200);i.focus();}
@@ -1613,6 +1864,50 @@ function fPoliticaChange(val){
   });
   aplicarPoliticaCheck();
 }
+// ─── CACHE DA BASE (IndexedDB) ─────────────────────────────────────────
+// localStorage estoura a cota (~5-10MB) com bases grandes (20k+ lotes) e o
+// cache simplesmente nunca salva; IndexedDB aguenta bases bem maiores e
+// guarda o array direto, sem precisar (de)serializar JSON.
+const IDB_NAME='sb8_cache',IDB_STORE='raw',IDB_KEY='sb8_raw';
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    if(!window.indexedDB){reject(new Error('IndexedDB indisponível'));return;}
+    const req=indexedDB.open(IDB_NAME,1);
+    req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(IDB_STORE))req.result.createObjectStore(IDB_STORE);};
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function idbSetRaw(data){
+  const db=await idbOpen();
+  await new Promise((resolve,reject)=>{
+    const tx=db.transaction(IDB_STORE,'readwrite');
+    tx.objectStore(IDB_STORE).put(data,IDB_KEY);
+    tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+  });
+}
+async function idbGetRaw(){
+  try{
+    const db=await idbOpen();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(IDB_STORE,'readonly');
+      const req=tx.objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+  }catch(e){console.warn('[sb8] idbGetRaw',e);return null;}
+}
+// Migra cache antigo do localStorage (bases pequenas) pro IndexedDB, uma vez
+async function idbMigrateFromLocalStorage(){
+  try{
+    const raw=localStorage.getItem('sb8_raw');
+    if(!raw)return;
+    const d=JSON.parse(raw);
+    if(d&&d.length)await idbSetRaw(d);
+    localStorage.removeItem('sb8_raw');
+  }catch(_){}
+}
+
 // Política via checkboxes no topo do hero — filtra TODA a base
 let polCheckSet=null;   // null = todas; Set = políticas marcadas
 let RAW_FULL=null;      // backup da base completa
@@ -1625,17 +1920,29 @@ function rebuildBase(){
   if(excludeVencidos)base=base.filter(r=>r.dias_para_vencer>=0);
   RAW.length=0;base.forEach(r=>RAW.push(r));
   const safe=(fn)=>{try{fn&&fn();}catch(e){console.warn('[rebuildBase]',e);}};
-  safe(buildHero);safe(buildKPIs);safe(buildCriticidade);safe(buildGerencial);
-  safe(buildCharts);safe(buildAlerts);safe(renderFiliais);safe(buildWeekComparison);safe(buildFilialStatusChart);
-  page=1;safe(applyF);safe(updateAIStats);
+  // buildHero primeiro e sozinho — ele dispara a contagem animada dos cards do
+  // topo. O resto (gráficos, KPIs, cards) é pesado e trava a thread por tempo
+  // suficiente pra "pular" os frames da animação; adiar deixa o navegador
+  // pintar a contagem subindo antes de travar de novo com esse trabalho pesado.
+  safe(buildHero);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    safe(buildKPIs);safe(buildCriticidade);safe(buildGerencial);
+    safe(buildCharts);safe(buildAlerts);safe(renderFiliais);safe(buildWeekComparison);safe(buildFilialStatusChart);
+    page=1;safe(applyF);safe(updateAIStats);
+  }));
 }
+let __polCheckDebounce=null;
 function aplicarPoliticaCheck(){
   const boxes=[...document.querySelectorAll('.cyber-check')];
   const checked=boxes.filter(b=>b.checked).map(b=>b.dataset.pol);
   polCheckSet=(checked.length===0||checked.length===boxes.length)?null:new Set(checked);
   const fp=document.getElementById('fPolitica');
   if(fp)fp.value=(polCheckSet&&polCheckSet.size===1)?[...polCheckSet][0]:'';
-  rebuildBase();
+  // rebuildBase() é pesado (refaz gráficos/KPIs/filiais) — adia pro próximo frame pra
+  // não travar o clique/animação do checkbox, e agrupa cliques em sequência num só recálculo
+  // (sem loader de tela cheia aqui — é só um filtro, os números já animam sozinhos)
+  clearTimeout(__polCheckDebounce);
+  __polCheckDebounce=setTimeout(rebuildBase,150);
 }
 function filterBkt(b){document.getElementById('fBucket').value=b;applyF();}
 function applyF(){
@@ -1819,6 +2126,7 @@ function openM(idx){
           ${bktBadge(d)}
           ${r.Classificacao?classBadge(r.Classificacao):''}
           ${(r.Politica||r.CartaGarantia)?politicaBadge(r):''}
+          <button type="button" class="lm-foto-btn" onclick="event.stopPropagation();openFotoModal(${idx})"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Ver foto</button>
         </div>
         <div class="lm-corner">
           <span class="lm-filial-tag">${svgBuilding} Filial ${r.Filial||'—'}</span>
@@ -2094,6 +2402,308 @@ function openFilialDetail(filial){
 }
 function closeFilM(){document.getElementById('filModalBg').classList.remove('open');}
 
+// ─── MODAL: TIPO DE PRODUTO → LABORATÓRIOS ────────────────────────────
+function openTipoM(catKey){
+  const o=(window.__gerCatMap||{})[catKey];
+  if(!o)return;
+  document.getElementById('tipoMTtl').textContent=catKey;
+  const totalV=o.vR||0;
+  document.getElementById('tipoMSub').innerHTML=`<b style="color:var(--txt)">${o.nR.toLocaleString('pt-BR')}</b> lotes em risco · <b style="color:var(--acc)">${fCur(totalV)||'—'}</b> expostos (46–180d)`;
+  const labs=Object.entries(o.labs).sort((a,b)=>(b[1].v||b[1].s)-(a[1].v||a[1].s));
+  const wrap=document.getElementById('tipoMTbl');
+  wrap.innerHTML='';
+  if(!labs.length){
+    wrap.innerHTML='<div style="padding:16px;text-align:center;color:var(--txt3);font-size:12px">Nenhum laboratório encontrado.</div>';
+  }else{
+    labs.forEach(([f,t],i)=>{
+      const row=document.createElement('div');
+      row.style.cssText=`display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;font-size:12.5px;${i<labs.length-1?'border-bottom:1px solid var(--b1);':''}background:${i%2?'var(--s1)':'transparent'}`;
+      row.innerHTML=`<span style="color:var(--txt);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${f}</span><span style="font-family:'JetBrains Mono',monospace;color:var(--txt3);white-space:nowrap;flex-shrink:0"><b style="color:var(--txt)">${t.n}</b> lotes · <b style="color:var(--acc)">${fCur(t.v)||'—'}</b></span>`;
+      wrap.appendChild(row);
+    });
+    const totRow=document.createElement('div');
+    totRow.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;font-size:12.5px;background:var(--s2);border-top:2px solid var(--b1)';
+    totRow.innerHTML=`<span style="color:var(--txt);font-weight:800;text-transform:uppercase;letter-spacing:.5px;font-size:11px">Total Geral</span><span style="font-family:'JetBrains Mono',monospace;color:var(--txt);font-weight:800;white-space:nowrap"><b>${o.nR.toLocaleString('pt-BR')}</b> lotes · <b style="color:var(--acc)">${fCur(totalV)||'—'}</b></span>`;
+    wrap.appendChild(totRow);
+  }
+  document.getElementById('tipoMVerBtn').onclick=()=>{
+    closeTipoM();
+    showRiskInTable(()=>{const sel=document.getElementById('fClass');if(sel){[...sel.options].forEach(opt=>{if(opt.value===catKey)sel.value=catKey;});}});
+  };
+  document.getElementById('tipoModalBg').classList.add('open');
+}
+function closeTipoM(){document.getElementById('tipoModalBg').classList.remove('open');}
+
+// ─── MODAL: FOTO DO PRODUTO (Viveo Recebimento → Google Custom Search → botão manual) ──
+let __fotoModalToken=0;
+// Prioriza a descrição do produto na busca — sites externos não conhecem o SKU
+// interno, então o código só entra como termo de busca se não houver descrição.
+function montarQueryFoto(codigo,descricao){
+  const d=String(descricao||'').trim();
+  const c=String(codigo||'').trim();
+  return d||c;
+}
+// Busca a 1ª imagem via Google Custom Search JSON API (confirmado: libera CORS
+// pra chamada direto do navegador). Só retorna algo se GOOGLE_CSE_API_KEY/CX
+// estiverem configurados E o faturamento do projeto estiver ativo — senão volta null.
+async function buscarFotoGoogleCSE(codigo,descricao){
+  const key=window.GOOGLE_CSE_API_KEY,cx=window.GOOGLE_CSE_CX;
+  if(!key||!cx)return null;
+  const q=encodeURIComponent(montarQueryFoto(codigo,descricao));
+  try{
+    const resp=await fetch(`https://www.googleapis.com/customsearch/v1?key=${key}&cx=${cx}&searchType=image&num=1&safe=active&q=${q}`);
+    if(!resp.ok)return null;
+    const data=await resp.json();
+    const item=data&&data.items&&data.items[0];
+    return item&&item.link?item.link:null;
+  }catch(e){console.warn('[fotoModal] buscarFotoGoogleCSE',e);return null;}
+}
+// ─── FICHA TÉCNICA — Viveo Recebimento (via proxy CORS público, autorizado) ──
+// O endpoint é público (não exige login) mas não libera CORS, então passa por
+// um proxy de terceiros (allorigins.win) que refaz a chamada por trás e
+// devolve com CORS liberado. Autorizado explicitamente: manda código do
+// produto/registro MS/cód. barras por esse serviço externo não controlado
+// pela empresa — ver decisão registrada na conversa.
+const FICHA_URL_DEAD='x';
+function parseFichaTecnica_UNUSED_DELETE_ME(html){
+  const doc=new DOMParser().parseFromString(html,'text/html');
+  const map={};
+  doc.querySelectorAll('tr').forEach(tr=>{
+    const tds=tr.querySelectorAll('td');
+    if(tds.length<2)return;
+    const label=tds[0].textContent.replace(/[: \s]+$/,'').trim();
+    const value=tds[1].textContent.replace(/\s+/g,' ').trim();
+    if(label)map[label]=value;
+  });
+  return map;
+}
+async function buscarFichaTecnica(codigo){
+  if(!codigo)return null;
+  try{
+    const realUrl=`https://money.viveo.com.br/rec/recPArmazenagem/recPArmazenagemEvents.php?ev=lerProduto&unidade=RIB&operacao=P&codProduto=${encodeURIComponent(codigo)}`;
+    const proxyUrl='https://api.allorigins.win/raw?url='+encodeURIComponent(realUrl);
+    const resp=await fetch(proxyUrl);
+    if(!resp.ok)return null;
+    const html=await resp.text();
+    if(!html||/n.o cadastrado/i.test(html))return null;
+    const map=parseFichaTecnica(html);
+    const out={};
+    FICHA_CAMPOS.forEach(c=>{if(map[c])out[c]=map[c];});
+    return Object.keys(out).length?out:null;
+  }catch(e){console.warn('[fichaTecnica] buscarFichaTecnica',e);return null;}
+}
+// dd/mm/aaaa → Date (mesmo formato usado em toda a base)
+function fmParseData(s){
+  const m=String(s||'').trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(!m)return null;
+  const d=new Date(+m[3],+m[2]-1,+m[1]);
+  return isNaN(d)?null:d;
+}
+const fmDiasCor=d=>d<0?'#f87171':d<=45?'#fb923c':d<=90?'#f0b020':d<=120?'#60a5fa':d<=180?'#a78bfa':'#22c55e';
+// "Saúde do Lote": % de vida útil restante (fabricação→validade). Sem data de
+// fabricação, aproxima pelas mesmas faixas de criticidade usadas no resto do app.
+function fmScore(r){
+  const f=fmParseData(r['Data Fabric']),v=fmParseData(r['Data Validad']);
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  if(f&&v&&v>f){
+    const total=v-f,rest=v-hoje;
+    return Math.max(0,Math.min(100,Math.round((rest/total)*100)));
+  }
+  const d=r.dias_para_vencer;
+  if(d==null)return null;
+  if(d<0)return 0;if(d<=45)return 20;if(d<=90)return 40;if(d<=120)return 60;if(d<=180)return 80;return 100;
+}
+const FM_ICN={
+  tag:'<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+  layer:'<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
+  lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  archive:'<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><line x1="10" y1="13" x2="14" y2="13"/>',
+  coin:'<circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M9 9c0-1.4 1.3-2.5 3-2.5s3 1 3 2-1.3 1.8-3 2-3 1-3 2 1.3 2.5 3 2.5 3-1.1 3-2.5"/>',
+  doc:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  shield:'<path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/>',
+  shieldCheck:'<path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/><path d="M9 12l2 2 4-4"/>',
+  factory:'<path d="M2 20h20M4 20V10l6 4v-4l6 4V6l4 3v11"/>',
+  truck:'<rect x="1" y="7" width="15" height="10" rx="1"/><path d="M16 10h3l3 3v4h-6z"/><circle cx="6" cy="19" r="2"/><circle cx="17" cy="19" r="2"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/>',
+  calAlert:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="12" y1="14" x2="12" y2="17"/><circle cx="12" cy="19.4" r=".6" fill="currentColor" stroke="none"/>',
+};
+function fmSvg(name){return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${FM_ICN[name]||FM_ICN.tag}</svg>`;}
+function fmBuildTimeline(r){
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const fmt=d=>d?`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`:'—';
+  const nodes=[
+    {lbl:'Fabricação',val:r['Data Fabric'],col:'#94a3b8',ico:'factory'},
+    {lbl:'Entrada',val:r['Data'],col:'#94a3b8',ico:'truck'},
+    {lbl:'Hoje',val:fmt(hoje),col:'var(--acc)',ico:'clock'},
+    {lbl:'Validade',val:r['Data Validad'],col:fmDiasCor(r.dias_para_vencer),ico:'calAlert'},
+  ];
+  return nodes.map(n=>`
+    <div class="fm-tl-node">
+      <div class="fm-tl-dot" style="color:${n.col};border-color:${n.col}">${fmSvg(n.ico)}</div>
+      <div class="fm-tl-lbl">${n.lbl}</div>
+      <div class="fm-tl-val">${n.val||'—'}</div>
+    </div>`).join('');
+}
+function fmStat(lbl,val,ico){
+  return `<div class="fm-stat"><span class="fm-stat-ico">${fmSvg(ico||'tag')}</span><div class="fm-stat-body"><div class="fm-stat-lbl">${lbl}</div><div class="fm-stat-val">${val!=null&&val!==''?val:'—'}</div></div></div>`;
+}
+function openFotoModal(idx){
+  const r=RAW[idx];if(!r)return;
+  const codigo=r.Produto,descricao=r.Descricao;
+  const token=++__fotoModalToken; // evita que uma resposta atrasada sobrescreva a foto aberta depois
+  const stage=document.getElementById('fotoModalStage');
+  const googleWrap=document.getElementById('fotoModalGoogle');
+  const zoomBtn=document.getElementById('fmZoomBtn'),dlBtn=document.getElementById('fmDownloadBtn'),expBtn=document.getElementById('fmExpandBtn');
+  stage.classList.remove('fm-has-img','fm-zoomed');
+  zoomBtn.disabled=dlBtn.disabled=expBtn.disabled=true;
+  window.__fmCurrentImgUrl=null;
+  window.__fmCurrentCodigo=codigo;
+
+  document.getElementById('fmSku').textContent='SKU '+(codigo||'—');
+  document.getElementById('fmNome').textContent=descricao||'Produto sem descrição';
+  document.getElementById('fmTags').innerHTML=`
+    ${r.Classificacao?classBadge(r.Classificacao):''}
+    ${r.Fornecedor?`<span class="lm-pill green">${r.Fornecedor}</span>`:''}
+    ${bktBadge(r.dias_para_vencer)}`;
+
+  const score=fmScore(r);
+  const scoreWrap=document.getElementById('fmScoreWrap');
+  if(score==null){scoreWrap.style.display='none';}
+  else{
+    scoreWrap.style.display='block';
+    document.getElementById('fmScoreVal').textContent=score+'%';
+    // a barra de fundo já é o degradê vermelho→verde; o "fill" cobre da direita
+    // pra esquerda o trecho ainda não atingido, revelando só a % de saúde
+    document.getElementById('fmScoreFill').style.width=(100-score)+'%';
+  }
+  document.getElementById('fmTimeline').innerHTML=fmBuildTimeline(r);
+
+  const totalSaldo=RAW.filter(x=>x.Produto===r.Produto).reduce((s,x)=>s+(x['Saldo Lote']||0),0);
+  document.getElementById('fmSaldoTotal').innerHTML=
+    `<div class="fm-stat-highlight-lbl">${fmSvg('layer')}Saldo total do SKU (todos os armazéns)</div><div class="fm-stat-highlight-val">${fN(totalSaldo)}</div>`;
+  document.getElementById('fmEstoque').innerHTML=
+    fmStat('Lote',r.Lote,'tag')+fmStat('Saldo do Lote',r['Saldo Lote']!=null?fN(r['Saldo Lote']):null,'layer')+
+    fmStat('Empenhado',r['Emp. do Lote']!=null&&r['Emp. do Lote']!==''?fN(r['Emp. do Lote']):null,'lock')+fmStat('Armazém',r.Armazem,'archive');
+
+  const rotPol=(v)=>{const u=String(v||'').toUpperCase();return u==='SIM'?'Sim':(u==='NÃO'||u==='NAO')?'Não':(v||null);};
+  document.getElementById('fmPolitica').innerHTML=
+    fmStat('Política de Troca',rotPol(r.Politica),'shield')+fmStat('Carta de Garantia',rotPol(r.CartaGarantia),'shieldCheck')+
+    fmStat('NF',r.NFDocumento||r.Documento,'doc')+fmStat('Validade NF',r.NFDataValidade,'calAlert');
+
+  document.getElementById('fmFinanceiro').innerHTML=
+    fmStat('Valor Unitário',r.Valor?fCur(r.Valor):null,'coin')+fmStat('Valor Total',r.ValorTotal?fCur(r.ValorTotal):null,'coin');
+
+  googleWrap.style.display='none';
+  googleWrap.innerHTML='';
+  const spinnerHtml='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--txt3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>';
+  stage.innerHTML=spinnerHtml;
+  document.getElementById('fotoModalBg').classList.add('open');
+
+  const mostrarBotaoManual=()=>{
+    const q=encodeURIComponent(montarQueryFoto(codigo,descricao));
+    googleWrap.style.display='block';
+    googleWrap.innerHTML=`<a class="btn btn-acc" href="https://www.google.com/search?tbm=isch&q=${q}" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;width:100%"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Buscar no Google Imagens</a>`;
+  };
+  const mostrarNaoEncontrada=()=>{
+    if(token!==__fotoModalToken)return;
+    stage.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;gap:12px;color:var(--txt3);padding:24px;text-align:center">
+      <span style="width:64px;height:64px;border-radius:50%;background:var(--s1);border:1px solid var(--b1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+      </span>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:var(--txt2)">Foto do produto não encontrada</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:4px;max-width:220px">Não achamos no Viveo nem na busca automática. Tente pesquisar manualmente:</div>
+      </div>
+    </div>`;
+    mostrarBotaoManual();
+  };
+  const mostrarImagem=(url,onFalha)=>{
+    const img=new Image();
+    img.onload=()=>{
+      if(token!==__fotoModalToken)return;
+      stage.innerHTML='';
+      stage.appendChild(img);
+      stage.classList.add('fm-has-img');
+      zoomBtn.disabled=dlBtn.disabled=expBtn.disabled=false;
+      window.__fmCurrentImgUrl=url;
+    };
+    img.onerror=onFalha;
+    img.src=url;
+  };
+  const tentarGoogleCSE=async()=>{
+    if(token!==__fotoModalToken)return;
+    stage.innerHTML=spinnerHtml;
+    const gUrl=await buscarFotoGoogleCSE(codigo,descricao);
+    if(token!==__fotoModalToken)return;
+    if(gUrl)mostrarImagem(gUrl,mostrarNaoEncontrada);
+    else mostrarNaoEncontrada();
+  };
+
+  const tpl=window.VIVEO_FOTO_URL_TEMPLATE;
+  if(!tpl||!codigo){tentarGoogleCSE();return;}
+  const url=tpl.replace('{codigo}',encodeURIComponent(codigo));
+  mostrarImagem(url,tentarGoogleCSE);
+}
+function closeFotoModal(){document.getElementById('fotoModalBg').classList.remove('open');}
+let __fmDragMoved=false;
+function fmToggleZoom(){
+  if(__fmDragMoved){__fmDragMoved=false;return;} // era arraste, não clique — não alterna o zoom
+  const stage=document.getElementById('fotoModalStage');
+  if(!stage.classList.contains('fm-has-img'))return;
+  stage.classList.toggle('fm-zoomed');
+  if(stage.classList.contains('fm-zoomed')){
+    // abre já centralizado na imagem ampliada
+    stage.scrollLeft=(stage.scrollWidth-stage.clientWidth)/2;
+    stage.scrollTop=(stage.scrollHeight-stage.clientHeight)/2;
+  }
+}
+// Arrastar pra mover a foto enquanto está com zoom (mouse, caneta e touch via Pointer Events)
+(function(){
+  const stage=document.getElementById('fotoModalStage');
+  if(!stage)return;
+  let dragging=false,startX=0,startY=0,startL=0,startT=0;
+  stage.addEventListener('pointerdown',e=>{
+    if(!stage.classList.contains('fm-zoomed'))return;
+    dragging=true;__fmDragMoved=false;
+    startX=e.clientX;startY=e.clientY;startL=stage.scrollLeft;startT=stage.scrollTop;
+    stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove',e=>{
+    if(!dragging)return;
+    const dx=e.clientX-startX,dy=e.clientY-startY;
+    if(Math.abs(dx)>3||Math.abs(dy)>3)__fmDragMoved=true;
+    stage.scrollLeft=startL-dx;
+    stage.scrollTop=startT-dy;
+  });
+  const parar=()=>{dragging=false;};
+  stage.addEventListener('pointerup',parar);
+  stage.addEventListener('pointercancel',parar);
+})();
+function fmExpandFoto(){
+  if(!window.__fmCurrentImgUrl)return;
+  document.getElementById('fmLightboxImg').src=window.__fmCurrentImgUrl;
+  document.getElementById('fmLightboxBg').classList.add('open');
+}
+function fmCloseLightbox(){document.getElementById('fmLightboxBg').classList.remove('open');}
+async function fmDownloadFoto(){
+  const url=window.__fmCurrentImgUrl;if(!url)return;
+  const nome=(document.getElementById('fmSku').textContent||'foto').replace(/[^\w-]+/g,'_');
+  try{
+    const resp=await fetch(url,{mode:'cors'});
+    if(!resp.ok)throw new Error('fetch falhou');
+    const blob=await resp.blob();
+    const blobUrl=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=blobUrl;a.download=nome+'.jpg';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(blobUrl),4000);
+  }catch(e){
+    // Imagem cross-origin sem CORS pra download — abre em nova aba pra salvar manualmente
+    window.open(url,'_blank','noopener');
+    toast('Não deu pra baixar direto — abri a foto em outra aba, use "Salvar imagem como"','warn');
+  }
+}
+
 // ─── FILIAIS ─────────────────────────────────────────────────────────
 function renderFiliais(){
   const byF={};
@@ -2192,9 +2802,9 @@ function buildHero(){
     setGaugeOffset('gaugeErrCircle',pctVencN);
   },200);
 
-  document.getElementById('gaugeOkPct').textContent=pctNoPrazo.toFixed(1)+'%';
-  document.getElementById('gaugeErrPct').textContent=pctVencN.toFixed(1)+'%';
-  const elLc=document.getElementById('heroLoteCount');if(elLc)elLc.textContent=totalJanela.toLocaleString('pt-BR');
+  animateNumber(document.getElementById('gaugeOkPct'),pctNoPrazo,v=>v.toFixed(1)+'%');
+  animateNumber(document.getElementById('gaugeErrPct'),pctVencN,v=>v.toFixed(1)+'%');
+  animateNumber(document.getElementById('heroLoteCount'),totalJanela);
   const skuRisco=uniqP(janela46a180);
   const fmtV=v=>v>=1e6?'R$ '+(v/1e6).toFixed(1)+'M':v>=1e3?'R$ '+(v/1e3).toFixed(0)+'K':v>0?fCur(v):'';
   document.getElementById('hOk').textContent=skuOk.toLocaleString('pt-BR')+' SKU'+(vOk?' · '+fmtV(vOk):'');
@@ -2211,32 +2821,32 @@ function buildHero(){
   // Valor 46–180 dias
   const hvc=document.getElementById('heroTotalCur');
   const hvcWrap=document.getElementById('heroCurWrap');
-  if(hvc)hvc.textContent=vRisco>0?fCur(vRisco):'—';
+  animateNumberOrFallback(hvc,vRisco,v=>fCur(v)||'—','—');
 
   // SKUs únicos com validade entre 46 e 180 dias
   const skus46a180=new Set(RAW.filter(r=>r.dias_para_vencer>45&&r.dias_para_vencer<=180).map(r=>String(r.Produto||'').trim()).filter(Boolean));
-  const elSku=document.getElementById('heroSkuCount');
-  if(elSku)elSku.textContent=skus46a180.size.toLocaleString('pt-BR');
+  animateNumber(document.getElementById('heroSkuCount'),skus46a180.size);
 
   // Funnel
-  document.getElementById('fVenc').textContent=venc.length;
+  const curFmt=v=>fCur(v)||'';
+  animateNumber(document.getElementById('fVenc'),venc.length);
   document.getElementById('fVencSaldo').textContent=skuVenc.toLocaleString('pt-BR')+' SKU';
-  document.getElementById('fVencCur').textContent=fCur(valOf(venc))||'';
-  document.getElementById('fCrit').textContent=crit.length;
+  animateNumber(document.getElementById('fVencCur'),valOf(venc),curFmt);
+  animateNumber(document.getElementById('fCrit'),crit.length);
   document.getElementById('fCritSaldo').textContent=skuCrit.toLocaleString('pt-BR')+' SKU';
-  document.getElementById('fCritCur').textContent=fCur(valOf(crit))||'';
-  document.getElementById('fWarn').textContent=warn.length;
+  animateNumber(document.getElementById('fCritCur'),valOf(crit),curFmt);
+  animateNumber(document.getElementById('fWarn'),warn.length);
   document.getElementById('fWarnSaldo').textContent=skuWarn.toLocaleString('pt-BR')+' SKU';
-  document.getElementById('fWarnCur').textContent=fCur(valOf(warn))||'';
-  document.getElementById('fAlerta').textContent=alerta.length;
+  animateNumber(document.getElementById('fWarnCur'),valOf(warn),curFmt);
+  animateNumber(document.getElementById('fAlerta'),alerta.length);
   document.getElementById('fAlertaSaldo').textContent=skuAlerta.toLocaleString('pt-BR')+' SKU';
-  document.getElementById('fAlertaCur').textContent=fCur(valOf(alerta))||'';
-  document.getElementById('fMod').textContent=mod.length;
+  animateNumber(document.getElementById('fAlertaCur'),valOf(alerta),curFmt);
+  animateNumber(document.getElementById('fMod'),mod.length);
   document.getElementById('fModSaldo').textContent=skuMod.toLocaleString('pt-BR')+' SKU';
-  document.getElementById('fModCur').textContent=fCur(valOf(mod))||'';
-  document.getElementById('fOk').textContent=ok.length.toLocaleString('pt-BR');
+  animateNumber(document.getElementById('fModCur'),valOf(mod),curFmt);
+  animateNumber(document.getElementById('fOk'),ok.length);
   document.getElementById('fOkSaldo').textContent=skuOk.toLocaleString('pt-BR')+' SKU';
-  document.getElementById('fOkCur').textContent=fCur(valOf(ok))||'';
+  animateNumber(document.getElementById('fOkCur'),valOf(ok),curFmt);
 
 
   // Sidebar badges (optional — may not exist if header simplified)
@@ -2293,12 +2903,14 @@ function buildKPIs(){
     const labShort=t.f.length>26?t.f.substring(0,24)+'…':t.f;
     return `<div class="kpi-card" style="--gl:${col};cursor:pointer" onclick="showRiskInTable(()=>{const sel=document.getElementById('fForn');if(sel){[...sel.options].forEach(opt=>{if(opt.value==='${t.f.replace(/'/g,"\\'")}')sel.value='${t.f.replace(/'/g,"\\'")}';});}});">
       <div class="kpi-hd"><div class="kpi-dot"></div><div class="kpi-tag" title="${t.f}">${labShort}</div></div>
-      <div class="kpi-num">${skuCount.toLocaleString('pt-BR')}</div>
+      <div class="kpi-num" data-cnt="${skuCount}">0</div>
       <div class="kpi-cap">SKU · produtos distintos</div>
-      ${vCur?`<div class="kpi-val"><small>VALOR EM RISCO 46–180d</small>${vCur}</div>`:''}
+      ${vCur?`<div class="kpi-val"><small>VALOR EM RISCO 46–180d</small><span class="kpi-val-num" data-cnt="${t.v}">—</span></div>`:''}
       <div style="margin-top:6px;font-size:9.5px;font-weight:700;color:#f87171;font-family:'JetBrains Mono',monospace;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">⚠ Urgência: ${tipoRisco}</div>
     </div>`;
   }).join('');
+  document.querySelectorAll('#kpiStrip .kpi-num').forEach(el=>animateNumber(el,el.dataset.cnt));
+  document.querySelectorAll('#kpiStrip .kpi-val-num').forEach(el=>animateNumber(el,el.dataset.cnt,fmtR));
 }
 
 // ─── CHARTS ─────────────────────────────────────────────────────────
@@ -2438,29 +3050,31 @@ function buildCriticidade(){
   });
 
   // Stats
-  document.getElementById('cmsTotalLotes').textContent=total.toLocaleString('pt-BR');
-  document.getElementById('cmsTotalSaldo').textContent=totalS>=1e6?(totalS/1e6).toFixed(1)+'M':fN(totalS);
-  document.getElementById('cmsRiscoLotes').textContent=riscoLotes.toLocaleString('pt-BR');
-  document.getElementById('cmsOkPct').textContent=total?Math.round(bd[5].n/total*100)+'%':'0%';
+  animateNumber(document.getElementById('cmsTotalLotes'),total);
+  animateNumber(document.getElementById('cmsTotalSaldo'),totalS,v=>v>=1e6?(v/1e6).toFixed(1)+'M':fN(v));
+  animateNumber(document.getElementById('cmsRiscoLotes'),riscoLotes);
+  animateNumber(document.getElementById('cmsOkPct'),total?bd[5].n/total*100:0,v=>Math.round(v)+'%');
 
   // Rows
   document.getElementById('critiRows').innerHTML=bd.map(b=>{
     const pct=total?((b.n/total)*100).toFixed(1):0;
     const barW=Math.round(b.n/maxN*100);
     const vCur=fCur(b.v);
-    return`<div class="crit-row${b.lbl==='VENCIDO'?' venc-only':''}" onclick="${b.onclick}"><div class="crit-row-lbl"><span class="crit-dot" style="background:${b.color};color:${b.color}"></span>${b.lbl}</div><div class="crit-bar"><div class="crit-bar-fill" style="width:${barW}%;background:${b.color}"></div></div><div class="crit-n">${b.n.toLocaleString('pt-BR')}</div><div class="crit-s" style="line-height:1.15">${fmt(b.s)} SKU${vCur?'<div style="color:var(--acc);font-weight:900;font-size:13px;margin-top:3px;letter-spacing:-.3px">'+vCur+'</div>':''}</div><div class="crit-p" style="color:${b.color}">${pct}%</div></div>`;
+    return`<div class="crit-row${b.lbl==='VENCIDO'?' venc-only':''}" onclick="${b.onclick}"><div class="crit-row-lbl"><span class="crit-dot" style="background:${b.color};color:${b.color}"></span>${b.lbl}</div><div class="crit-bar"><div class="crit-bar-fill" style="width:${barW}%;background:${b.color}"></div></div><div class="crit-n" data-cnt="${b.n}">0</div><div class="crit-s" style="line-height:1.15">${fmt(b.s)} SKU${vCur?'<div style="color:var(--acc);font-weight:900;font-size:13px;margin-top:3px;letter-spacing:-.3px">'+vCur+'</div>':''}</div><div class="crit-p" data-cnt="${pct}" style="color:${b.color}">0%</div></div>`;
   }).join('');
+  document.querySelectorAll('#critiRows .crit-n').forEach(el=>animateNumber(el,el.dataset.cnt));
+  document.querySelectorAll('#critiRows .crit-p').forEach(el=>animateNumber(el,el.dataset.cnt,v=>v.toFixed(1)+'%'));
 
   // Bottom cards
   const vV0=fCur(bd[0].v),vV1=fCur(bd[1].v),vV5=fCur(bd[5].v),vVr=fCur(bd[0].v+bd[1].v+bd[2].v);
-  document.getElementById('cbcVenc').textContent=bd[0].n.toLocaleString('pt-BR');
+  animateNumber(document.getElementById('cbcVenc'),bd[0].n);
   document.getElementById('cbcVencSub').textContent=fmt(bd[0].s)+' SKU'+(vV0?' · '+vV0:'');
-  document.getElementById('cbcCrit').textContent=bd[1].n.toLocaleString('pt-BR');
+  animateNumber(document.getElementById('cbcCrit'),bd[1].n);
   document.getElementById('cbcCritSub').textContent=fmt(bd[1].s)+' SKU'+(vV1?' · '+vV1:'');
-  document.getElementById('cbcOk').textContent=bd[5].n.toLocaleString('pt-BR');
+  animateNumber(document.getElementById('cbcOk'),bd[5].n);
   document.getElementById('cbcOkSub').textContent=fmt(bd[5].s)+' SKU'+(vV5?' · '+vV5:'');
-  const riskPct=totalS?((riscoSaldo/totalS)*100).toFixed(1):0;
-  document.getElementById('cbcRiskPct').textContent=riskPct+'%';
+  const riskPct=totalS?((riscoSaldo/totalS)*100):0;
+  animateNumber(document.getElementById('cbcRiskPct'),riskPct,v=>v.toFixed(1)+'%');
   document.getElementById('cbcRiskSub').textContent=fmt(riscoSaldo)+' SKU expostos'+(vVr?' · '+vVr:'');
 }
 
@@ -2510,10 +3124,13 @@ function buildGerencial(){
           </div>
           <div class="gp-mini-bar"><div class="gp-mini-fill" style="width:${w}%;background:${col}"></div></div>
         </div>
-        <div class="gp-qty">${p.n.toLocaleString('pt-BR')}<small>LOTES EM RISCO</small></div>
-        <div class="gp-val">${vCur||'—'}<small style="color:${col}">${lblD}</small></div>
+        <div class="gp-qty"><span class="gp-num" data-cnt="${p.n}">0</span><small>LOTES EM RISCO</small></div>
+        <div class="gp-val"><span class="gp-num" data-cnt="${p.v||0}">—</span><small style="color:${col}">${lblD}</small></div>
         <svg class="gp-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
       elP.appendChild(row);
+      const qEl=row.querySelector('.gp-qty .gp-num'),vEl=row.querySelector('.gp-val .gp-num');
+      animateNumber(qEl,p.n);
+      animateNumberOrFallback(vEl,p.v,fmtR,'—');
     });
   }
 
@@ -2552,32 +3169,33 @@ function buildGerencial(){
       row.onclick=()=>{showRiskInTable(()=>{const sel=document.getElementById('fForn');if(sel){[...sel.options].forEach(o=>{if(o.value===l.f)sel.value=l.f;});}});};
       row.innerHTML=`
         <div style="min-width:0">
-          <div class="gp-name" style="-webkit-line-clamp:1" title="${l.f.replace(/"/g,'&quot;')}">${l.f}</div>
-          <div class="gp-meta" style="gap:4px">
+          <div class="gp-name" style="-webkit-line-clamp:1;font-size:12px" title="${l.f.replace(/"/g,'&quot;')}">${l.f}</div>
+          <div class="gp-meta" style="gap:6px">
             ${l.nVenc?`<span style="color:#f87171">●${l.nVenc}</span>`:''}
             ${l.n45?`<span style="color:#fbbf24">●${l.n45}</span>`:''}
             ${l.n90?`<span style="color:#f0b020">●${l.n90}</span>`:''}
             ${l.n120?`<span style="color:#38bdf8">●${l.n120}</span>`:''}
             ${l.n180?`<span style="color:#818cf8">●${l.n180}</span>`:''}
-
+            ${Object.entries(l.tipos).sort((a,b)=>(b[1].v||b[1].s)-(a[1].v||a[1].s)).slice(0,4).map(([c,t])=>{
+              const upC=c.toUpperCase();
+              let cBg='rgba(106,122,144,.12)',cFg='#475569';
+              if(upC.includes('VACINA')){cBg='rgba(14,165,233,.13)';cFg='#0369a1';}
+              else if(upC.includes('CONTROLADO')){cBg='rgba(168,85,247,.13)';cFg='#7c3aed';}
+              else if(upC.includes('PERECIVEL')||upC.includes('PERECÍVEL')){cBg='rgba(240,176,32,.13)';cFg='#a16207';}
+              else if(upC.includes('MEDICAMENTO')){cBg='rgba(11,94,99,.12)';cFg='#0b5e63';}
+              else if(upC.includes('DERMO')){cBg='rgba(236,72,153,.12)';cFg='#be185d';}
+              else if(upC.includes('MATERIAL')){cBg='rgba(100,116,139,.13)';cFg='#475569';}
+              return`<span class="gp-tag-mini" style="background:${cBg};color:${cFg};border-color:${cBg}"><b>${c}</b> · ${t.n}</span>`;
+            }).join('')}
           </div>
-          <div class="gp-tags">${Object.entries(l.tipos).sort((a,b)=>(b[1].v||b[1].s)-(a[1].v||a[1].s)).slice(0,4).map(([c,t])=>{
-            const upC=c.toUpperCase();
-            let cBg='rgba(106,122,144,.12)',cFg='#475569';
-            if(upC.includes('VACINA')){cBg='rgba(14,165,233,.13)';cFg='#0369a1';}
-            else if(upC.includes('CONTROLADO')){cBg='rgba(168,85,247,.13)';cFg='#7c3aed';}
-            else if(upC.includes('PERECIVEL')||upC.includes('PERECÍVEL')){cBg='rgba(240,176,32,.13)';cFg='#a16207';}
-            else if(upC.includes('MEDICAMENTO')){cBg='rgba(11,94,99,.12)';cFg='#0b5e63';}
-            else if(upC.includes('DERMO')){cBg='rgba(236,72,153,.12)';cFg='#be185d';}
-            else if(upC.includes('MATERIAL')){cBg='rgba(100,116,139,.13)';cFg='#475569';}
-            return`<span class="gp-tag-mini" style="background:${cBg};color:${cFg};border-color:${cBg}"><b>${c}</b> · ${t.n}</span>`;
-          }).join('')}</div>
           <div class="gp-mini-bar"><div class="gp-mini-fill" style="width:${w}%;background:${dominCol}"></div></div>
         </div>
-        <div class="gp-qty">${l.skus.size.toLocaleString('pt-BR')}<small>SKU · ${l.nR} LOTES</small></div>
-        <div class="gp-val">${vCur||'—'}<small>VALOR 46–180d</small></div>
+        <div class="gp-qty"><span class="gp-num" data-cnt="${l.skus.size}">0</span><small>SKU · ${l.nR} LOTES</small></div>
+        <div class="gp-val"><span class="gp-num" data-cnt="${l.vR||0}">—</span><small>VALOR 46–180d</small></div>
         <svg class="gp-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
       elL.appendChild(row);
+      animateNumber(row.querySelector('.gp-qty .gp-num'),l.skus.size);
+      animateNumberOrFallback(row.querySelector('.gp-val .gp-num'),l.vR,fmtR,'—');
     });
   }
 
@@ -2598,6 +3216,7 @@ function buildGerencial(){
     o.labs[f].n++;o.labs[f].s+=sl(r);o.labs[f].v+=r.Valor||0;
   });
   const cats=Object.values(byCat).filter(c=>c.nR>0).sort((a,b)=>b.nR-a.nR||(b.vR||b.sR)-(a.vR||a.sR));
+  window.__gerCatMap={};cats.forEach(o=>{window.__gerCatMap[o.c]=o;});
   if(!cats.length){elC.innerHTML='<div class="gp-empty">Nenhum tipo em risco.</div>';}
   else{
     elC.innerHTML='';
@@ -2615,7 +3234,7 @@ function buildGerencial(){
       else if(upC.includes('MATERIAL'))dotCol='#64748b';
       const row=document.createElement('div');
       row.className='gp-row gp-row-cat';
-      row.onclick=()=>{showRiskInTable(()=>{const sel=document.getElementById('fClass');if(sel){[...sel.options].forEach(opt=>{if(opt.value===o.c)sel.value=o.c;});}});};
+      row.onclick=()=>openTipoM(o.c);
       row.innerHTML=`
         <div style="min-width:0">
           <div style="margin-bottom:5px">${tag}</div>
@@ -2632,10 +3251,12 @@ function buildGerencial(){
           }).join('')}</div>
           <div class="gp-mini-bar"><div class="gp-mini-fill" style="width:${w}%;background:${dotCol}"></div></div>
         </div>
-        <div class="gp-qty">${o.nR.toLocaleString('pt-BR')}<small>LOTES EM RISCO</small></div>
-        <div class="gp-val">${vCur||'—'}<small>EXPOSTO</small></div>
+        <div class="gp-qty"><span class="gp-num" data-cnt="${o.nR}">0</span><small>LOTES EM RISCO</small></div>
+        <div class="gp-val"><span class="gp-num" data-cnt="${o.vR||0}">—</span><small>EXPOSTO</small></div>
         <svg class="gp-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
       elC.appendChild(row);
+      animateNumber(row.querySelector('.gp-qty .gp-num'),o.nR);
+      animateNumberOrFallback(row.querySelector('.gp-val .gp-num'),o.vR,fmtR,'—');
     });
   }
 }
@@ -2711,10 +3332,10 @@ function updateAIStats(){
   const venc=RAW.filter(r=>r.dias_para_vencer<0).length;
   const crit=RAW.filter(r=>r.dias_para_vencer>=0&&r.dias_para_vencer<=45).length;
   const safe=RAW.filter(r=>r.dias_para_vencer>180).length;
-  document.getElementById('aiStLotes').textContent=RAW.length>=1000?(RAW.length/1000).toFixed(1)+'K':RAW.length;
-  document.getElementById('aiStVenc').textContent=venc;
-  document.getElementById('aiStCrit').textContent=crit;
-  document.getElementById('aiStOk').textContent=safe;
+  animateNumber(document.getElementById('aiStLotes'),RAW.length,v=>v>=1000?(v/1000).toFixed(1)+'K':Math.round(v));
+  animateNumber(document.getElementById('aiStVenc'),venc);
+  animateNumber(document.getElementById('aiStCrit'),crit);
+  animateNumber(document.getElementById('aiStOk'),safe);
   const totalS=RAW.reduce((s,r)=>s+sl(r),0);
   const fmt=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':v;
   document.getElementById('aiGreet').innerHTML=`Olá! Sou <b>NEXA</b>, analista SB8 Vendável.<br><br>📊 <b>${RAW.length.toLocaleString('pt-BR')}</b> lotes · <b>${fmt(totalS)}</b> SKU em estoque<br>🔴 <b>${venc}</b> vencidos · 🟠 <b>${crit}</b> críticos (0–45d)<br>🟢 <b>${safe}</b> lotes seguros (180d+)<br><br>Use os botões ou pergunte sobre filiais, produtos ou prazos.`;
@@ -2759,16 +3380,25 @@ function init(){
     }).catch(e=>console.warn('[sb8] políticas/NF em paralelo',e));
   }
   (async()=>{
+    // Cache primeiro: se já tem base salva de uma visita anterior, carrega na
+    // hora (rápido) e busca o dado fresco do Supabase em segundo plano,
+    // atualizando sozinho quando chegar. Mostra o loader rapidinho mesmo assim
+    // — só como confirmação visual de que algo está acontecendo.
+    await idbMigrateFromLocalStorage(); // migra cache antigo (se existir) uma única vez
+    const cached=await idbGetRaw();
+    if(cached&&cached.length){
+      showLoader();
+      processUploadedData(cached,'cache local');
+      if(sb)loadFromSupabase(true).catch(e=>console.warn('[sb8] refresh em segundo plano',e));
+      return;
+    }
+    // Sem cache (primeira visita) — loader normal até os dados chegarem.
     // hideLoader() só é chamado dentro de processUploadedData/reinit — assim o loader
     // fica visível até os gráficos serem montados de verdade, não só até os dados chegarem.
     showLoader();
     if(sb&&await loadFromSupabase())return;   // 1) Supabase (online)
-    try{                                       // 2) cache localStorage
-      const raw=localStorage.getItem('sb8_raw');
-      if(raw){const d=JSON.parse(raw);if(d&&d.length){processUploadedData(d,'cache local');return;}}
-    }catch(_){}
     document.getElementById('syncLbl').textContent='⏳ Carregando arquivos…';
-    await autoLoadAllFiles();                 // 3) fallback rede/arquivo
+    await autoLoadAllFiles();                 // 2) fallback rede/arquivo
   })();
 }
 
@@ -3028,7 +3658,7 @@ async function handlePoliticaFile(file){
     window.POLITICA_MAP={entries,byKey,file:file.name,count:entries.length,ts:Date.now()};
     try{localStorage.setItem('sb8_politica_map',JSON.stringify({entries,file:file.name,ts:Date.now()}));}catch(_){}
     const res=aplicarPoliticaFornecedores();
-    try{localStorage.setItem('sb8_raw',JSON.stringify((typeof RAW_FULL!=='undefined'&&RAW_FULL)?RAW_FULL:RAW));}catch(_){}
+    idbSetRaw((typeof RAW_FULL!=='undefined'&&RAW_FULL)?RAW_FULL:RAW);
     // Filtro de política usa opções fixas (baldes da regra) — não depende do arquivo carregado
     if(typeof applyF==='function'){try{applyF();}catch(_){}}
     if(zone)zone.classList.add('ok-state');
@@ -3062,9 +3692,14 @@ function reinit(){
   // reseta filtro de política (nova base)
   RAW_FULL=null;polCheckSet=null;
   document.querySelectorAll('.cyber-check').forEach(b=>b.checked=true);
-  buildHero();buildKPIs();buildCharts();buildCriticidade();buildAlerts();buildGerencial();applyF();
-  buildWeekComparison();buildFilialStatusChart();
-  renderFiliais();updateAIStats();
+  // buildHero primeiro e sozinho — dispara a contagem animada dos cards do topo
+  // antes do trabalho pesado (gráficos etc) travar a thread e "pular" os frames.
+  buildHero();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    buildKPIs();buildCharts();buildCriticidade();buildAlerts();buildGerencial();applyF();
+    buildWeekComparison();buildFilialStatusChart();
+    renderFiliais();updateAIStats();
+  }));
   if(excludeVencidos)rebuildBase();
   // Extrai DATA_GERACAO dos próprios dados (coluna do Excel/Supabase)
   const _gerDates=RAW.map(r=>{
@@ -3680,7 +4315,7 @@ function processFile(file){
   reader.readAsArrayBuffer(file);
 }
 
-function processUploadedData(rows,filename){
+function processUploadedData(rows,filename,silent){
   if(!rows||rows.length===0){
     showUploadStatus('err','Arquivo vazio ou sem dados reconhecidos.');
     document.getElementById('uploadZone').classList.add('err-state');
@@ -3838,10 +4473,16 @@ function processUploadedData(rows,filename){
   showUploadStatus('ok',`<b>${newRows.length.toLocaleString('pt-BR')}</b> lotes importados com sucesso de <b>${filename}</b>${skipped>0?` <small style="color:var(--txt3)">(${skipped} ignoradas)</small>`:''}.`);
 
   setTimeout(()=>{
-    try{localStorage.setItem('sb8_raw',JSON.stringify(RAW));if(xlsxFileDate)localStorage.setItem('sb8_raw_date',xlsxFileDate.toISOString());console.log('[sb8] localStorage saved:',RAW.length,'lotes');}catch(e){console.warn('[sb8] localStorage save error:',e);toast('⚠️ Dados não salvos localmente — armazenamento cheio ou bloqueado','warn');}
+    idbSetRaw(RAW).then(()=>console.log('[sb8] cache (IndexedDB) salvo:',RAW.length,'lotes')).catch(e=>{console.warn('[sb8] cache save error:',e);toast('⚠️ Dados não salvos localmente — armazenamento cheio ou bloqueado','warn');});
+    if(xlsxFileDate)try{localStorage.setItem('sb8_raw_date',xlsxFileDate.toISOString());}catch(_){}
     reinit(); // monta os gráficos de verdade — só aqui o loader pode sumir
-    showScr('dash');
-    toast(`✅ ${newRows.length.toLocaleString('pt-BR')} lotes carregados de ${filename}`,'ok');
+    // Refresh silencioso (segundo plano, depois do cache): não empurra o
+    // usuário de volta pro dashboard nem mostra o toast de novo — só atualiza
+    // os dados por trás, sem repetir a "sensação de carregamento".
+    if(!silent){
+      showScr('dash');
+      toast(`✅ ${newRows.length.toLocaleString('pt-BR')} lotes carregados de ${filename}`,'ok');
+    }
     hideLoader();
   },1200);
 }
@@ -3942,18 +4583,31 @@ function _sbToBR(v){
 function _sbNum(v){if(v===''||v==null)return null;const n=parseFloat(String(v).replace(/[R$\s]/g,'').replace(',','.'));return isNaN(n)?null:n;}
 
 // ── Carrega do Supabase: estoque_atual (principal) + estoque_backlog (comparação) ──
-async function loadFromSupabase(){
+async function loadFromSupabase(silent){
   if(!sb)return false;
   try{
     const {count}=await sb.from('estoque_atual').select('*',{count:'exact',head:true});
     if(!count){console.log('[sb] estoque_atual vazia');return false;}
     const lbl=document.getElementById('syncLbl');
-    const all=[];const P=1000;
-    for(let f=0;f<count;f+=P){
-      const {data,error}=await sb.from('estoque_atual').select('*').range(f,f+P-1);
-      if(error)throw error;all.push(...data);
-      if(lbl)lbl.textContent=`⏳ Supabase ${all.length.toLocaleString('pt-BR')}/${count.toLocaleString('pt-BR')}…`;
-    }
+    const P=1000;
+    // Busca as páginas em paralelo (até 5 por vez) em vez de uma de cada vez —
+    // reduz bastante o tempo total de carregamento em bases grandes.
+    const pages=[];for(let f=0;f<count;f+=P)pages.push(f);
+    const results=new Array(pages.length);
+    let nextIdx=0,doneCount=0;
+    const worker=async()=>{
+      while(nextIdx<pages.length){
+        const my=nextIdx++;
+        const f=pages[my];
+        const {data,error}=await sb.from('estoque_atual').select('*').range(f,f+P-1);
+        if(error)throw error;
+        results[my]=data;
+        doneCount++;
+        if(lbl)lbl.textContent=`⏳ Supabase ${Math.min(doneCount*P,count).toLocaleString('pt-BR')}/${count.toLocaleString('pt-BR')}…`;
+      }
+    };
+    await Promise.all(Array.from({length:Math.min(5,pages.length||1)},worker));
+    const all=[].concat(...results);
     // mapeia TODOS os campos Supabase → colunas do app
     const toRows=arr=>arr.map(d=>({
       'Filial':         d.filial,
@@ -3990,9 +4644,8 @@ async function loadFromSupabase(){
       'Politica':       d.politica,
       'DATA_GERACAO':   d.data_geracao,
     }));
-    await loadPoliticasFromSupabase();
-    await loadNFEntradaFromSupabase();
-    processUploadedData(toRows(all),'Supabase · estoque_atual');
+    await Promise.all([loadPoliticasFromSupabase(),loadNFEntradaFromSupabase()]); // independentes — roda junto
+    processUploadedData(toRows(all),'Supabase · estoque_atual',silent);
     // backlog para comparação semanal
     try{
       const {count:cb}=await sb.from('estoque_backlog').select('*',{count:'exact',head:true});
@@ -4185,7 +4838,7 @@ async function bootstrap(){
 }
 document.addEventListener('DOMContentLoaded',bootstrap);
 document.addEventListener('DOMContentLoaded',initTheme);
-// ── PWA: Service Worker inline + Install prompt + Share API ──
+// ── PWA: Service Worker inline + Install prompt ──
 (function(){
   // ── Service Worker via Blob (sem arquivo externo) ──
   const swCode=`
@@ -4254,21 +4907,6 @@ self.addEventListener('fetch',e=>{
     if(btn)btn.style.display=show?'flex':'none';
   }
 
-  // ── Compartilhar via Web Share API (Chrome/Android/iOS) ──
-  window.shareApp=async function(){
-    const data={
-      title:'Shelf Life · SB8 Vendável Viveo',
-      text:'Gestão de Validade de Estoque — acesse o painel:',
-      url:window.location.href
-    };
-    if(navigator.canShare&&navigator.canShare(data)){
-      try{await navigator.share(data);toast('✅ Link compartilhado!','ok');}
-      catch(e){if(e.name!=='AbortError')copyToClipboard(window.location.href);}
-    }else{
-      copyToClipboard(window.location.href);
-    }
-  };
-
   // ── Transmitir para TV/Chromecast via Cast API ──
   window.__castLoaded=false;
   window['__onGCastApiAvailable']=function(isAvailable){
@@ -4290,21 +4928,10 @@ self.addEventListener('fetch',e=>{
     document.head.appendChild(s);
   }
 
-  // Botão Cast + Share na topbar (criados no DOMContentLoaded)
+  // Botão Cast na topbar (criado no DOMContentLoaded)
   document.addEventListener('DOMContentLoaded',()=>{
     const pill=document.getElementById('syncPill');
     if(!pill||!pill.parentElement)return;
-
-    // Botão Compartilhar
-    const shareBtn=document.createElement('button');
-    shareBtn.id='_shareBtn';
-    shareBtn.title='Compartilhar link';
-    shareBtn.innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`;
-    shareBtn.style.cssText='display:flex;align-items:center;padding:7px 9px;border:1px solid var(--b1);border-radius:8px;background:none;color:var(--txt2);cursor:pointer;transition:all .2s;flex-shrink:0';
-    shareBtn.onmouseover=()=>{shareBtn.style.borderColor='var(--acc)';shareBtn.style.color='var(--acc)';};
-    shareBtn.onmouseout=()=>{shareBtn.style.borderColor='var(--b1)';shareBtn.style.color='var(--txt2)';};
-    shareBtn.onclick=()=>window.shareApp();
-    pill.parentElement.insertBefore(shareBtn,pill);
 
     // Botão Cast (oculto por padrão, aparece se Cast disponível)
     const castBtn=document.createElement('button');
@@ -4335,15 +4962,6 @@ self.addEventListener('fetch',e=>{
   });
 
 })();
-
-function copyToClipboard(text){
-  navigator.clipboard?navigator.clipboard.writeText(text).then(()=>toast('📋 Link copiado!','ok')).catch(()=>_fallbackCopy(text)):_fallbackCopy(text);
-}
-function _fallbackCopy(text){
-  const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
-  document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-  toast('📋 Link copiado!','ok');
-}
 </script>
 </body>
 </html>
